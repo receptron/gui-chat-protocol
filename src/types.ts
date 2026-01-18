@@ -141,19 +141,21 @@ export interface PreviewComponentProps<T = unknown, J = unknown> {
  * @typeParam J - JSON data type (passed to LLM)
  * @typeParam A - Arguments type for execute function
  * @typeParam H - Input handler type (allows custom handlers)
+ * @typeParam S - Start response type (app-specific server response)
  */
 export interface ToolPluginCore<
   T = unknown,
   J = unknown,
   A extends object = object,
   H = InputHandler,
+  S = Record<string, unknown>,
 > {
   toolDefinition: ToolDefinition;
   execute: (context: ToolContext, args: A) => Promise<ToolResult<T, J>>;
   generatingMessage: string;
   waitingMessage?: string;
   uploadMessage?: string;
-  isEnabled: (startResponse?: Record<string, unknown> | null) => boolean;
+  isEnabled: (startResponse?: S | null) => boolean;
   delayAfterExecution?: number;
   systemPrompt?: string;
   inputHandlers?: H[];

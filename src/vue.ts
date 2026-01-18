@@ -32,13 +32,15 @@ export interface ToolPluginConfig {
  * @typeParam J - JSON data type (passed to LLM)
  * @typeParam A - Arguments type for execute function
  * @typeParam H - Input handler type (allows custom handlers)
+ * @typeParam S - Start response type (app-specific server response)
  */
 export interface ToolPlugin<
   T = unknown,
   J = unknown,
   A extends object = object,
   H = InputHandler,
-> extends ToolPluginCore<T, J, A, H> {
+  S = Record<string, unknown>,
+> extends ToolPluginCore<T, J, A, H, S> {
   viewComponent?: Component;
   previewComponent?: Component;
   /**
@@ -56,4 +58,5 @@ export type ToolPluginVue<
   J = unknown,
   A extends object = object,
   H = InputHandler,
-> = ToolPlugin<T, J, A, H>;
+  S = Record<string, unknown>,
+> = ToolPlugin<T, J, A, H, S>;

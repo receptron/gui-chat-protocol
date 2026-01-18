@@ -27,13 +27,15 @@ export * from "./index";
  * @typeParam J - JSON data type (passed to LLM)
  * @typeParam A - Arguments type for execute function
  * @typeParam H - Input handler type (allows custom handlers)
+ * @typeParam S - Start response type (app-specific server response)
  */
 export interface ToolPluginReact<
   T = unknown,
   J = unknown,
   A extends object = object,
   H = InputHandler,
-> extends ToolPluginCore<T, J, A, H> {
+  S = Record<string, unknown>,
+> extends ToolPluginCore<T, J, A, H, S> {
   ViewComponent?: ComponentType<ViewComponentProps<T, J>>;
   PreviewComponent?: ComponentType<PreviewComponentProps<T, J>>;
 }
