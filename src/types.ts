@@ -111,11 +111,19 @@ export interface ToolSample {
 // ============================================================================
 
 /**
+ * Options for sendTextMessage
+ */
+export interface SendTextMessageOptions {
+  /** Optional data to pass along with the message (for testing/debugging) */
+  data?: unknown;
+}
+
+/**
  * Standard props for View components
  */
 export interface ViewComponentProps<T = unknown, J = unknown> {
   selectedResult: ToolResultComplete<T, J>;
-  sendTextMessage: (text?: string) => void;
+  sendTextMessage: (text?: string, options?: SendTextMessageOptions) => void;
   onUpdateResult?: (result: Partial<ToolResult<T, J>>) => void;
   pluginConfigs?: Record<string, unknown>;
 }
