@@ -1,6 +1,6 @@
 {
   "name": "gui-chat-protocol",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Protocol types for GUI chat plugins - framework-agnostic core with Vue and React adapters",
   "type": "module",
   "exports": {
