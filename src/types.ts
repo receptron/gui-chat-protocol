@@ -162,7 +162,6 @@ export interface ToolPluginCore<
   execute: (context: ToolContext, args: A) => Promise<ToolResult<T, J>>;
   generatingMessage: string;
   waitingMessage?: string;
-  uploadMessage?: string;
   isEnabled: (startResponse?: S | null) => boolean;
   delayAfterExecution?: number;
   systemPrompt?: string;
