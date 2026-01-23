@@ -162,7 +162,6 @@ export interface ToolPluginCore<
   execute: (context: ToolContext, args: A) => Promise<ToolResult<T, J>>;
   generatingMessage: string;
   waitingMessage?: string;
-  uploadMessage?: string;
   isEnabled: (startResponse?: S | null) => boolean;
   delayAfterExecution?: number;
   systemPrompt?: string;
@@ -170,4 +169,13 @@ export interface ToolPluginCore<
   configSchema?: PluginConfigSchema;
   samples?: ToolSample[];
   backends?: BackendType[];
+  /**
+   * Merge function for handling parallel tool calls.
+   * When multiple tool calls update the same result concurrently,
+   * this function merges the new data with the current data.
+   * @param currentData - The current data in the result
+   * @param newData - The new data from the latest tool execution
+   * @returns The merged data
+   */
+  merge?: (currentData: T, newData: T) => T;
 }
