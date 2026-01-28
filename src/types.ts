@@ -126,6 +126,10 @@ export interface ViewComponentProps<T = unknown, J = unknown> {
   sendTextMessage: (text?: string, options?: SendTextMessageOptions) => void;
   onUpdateResult?: (result: Partial<ToolResult<T, J>>) => void;
   pluginConfigs?: Record<string, unknown>;
+
+  // LLM audio playback state (for avatar lip-sync, visual feedback, etc.)
+  // true when the LLM's voice response is currently playing
+  isAudioPlaying?: boolean;
 }
 
 /**
