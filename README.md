@@ -2,7 +2,7 @@
 
 A TypeScript library that defines the standard protocol for building GUI chat plugins. This package provides framework-agnostic core types with adapters for Vue and React, enabling developers to create interactive tool plugins that work with any compatible chat application.
 
-> For the full protocol specification, see [GUI_CHAT_PROTOCOL.md](https://github.com/receptron/MulmoChat/blob/main/GUI_CHAT_PROTOCOL.md)
+> For the full protocol specification, see [GUI_CHAT_PROTOCOL.md](spec/GUI_CHAT_PROTOCOL.md)
 
 ## What is GUI Chat Protocol?
 
