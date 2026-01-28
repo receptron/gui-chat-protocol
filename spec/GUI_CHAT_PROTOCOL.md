@@ -54,12 +54,14 @@ Tool executes → Returns data to LLM + additional typed data for GUI →
 
 ### The Enhancement: Typed Return Data
 
-When a tool executes, it returns **two things**:
+When a tool executes, it returns a `ToolResult` with two relevant payloads:
 
-1. **Response to LLM**: Text or structured data that the LLM needs to continue the conversation
-2. **Additional typed data**: Structured data with a specific type identifier (e.g., "image", "map", "game")
+1. **LLM response fields** – `message` (required) and optional `jsonData` that the LLM consumes to continue the conversation
+2. **GUI payload** – `data`, a structured object tagged with a `type` identifier (e.g., `"image"`, `"map"`, `"game"`)
 
-The **type** of the additional data determines which visual component renders it:
+Optional `instructions`, `title`, and `updating` fields help the LLM or UI understand how to follow up.
+
+The **type** within `ToolResult.data` determines which visual component renders it:
 
 - Type `"image"` → Image viewer component
 - Type `"map"` → Map component
@@ -89,12 +91,12 @@ The flow remains standard: tool results are always sent back to the LLM as funct
 // Tool executes
 const result = await generateImage(prompt);
 
-// Returns to LLM
+// Return ToolResult
 return {
-  llmResponse: "I've generated an image based on your prompt.",
+  message: "I've generated an image based on your prompt.",
+  jsonData: { prompt, imageUrl: result.imageUrl },
 
-  // Additional typed data for GUI
-  guiData: {
+  data: {
     type: "image",
     url: result.imageUrl,
     prompt: prompt,
@@ -108,12 +110,12 @@ return {
 // Tool executes
 const location = await geocode(address);
 
-// Returns to LLM
+// Return ToolResult
 return {
-  llmResponse: `Found location: ${location.name} at coordinates (${location.lat}, ${location.lng})`,
+  message: `Found location: ${location.name} at coordinates (${location.lat}, ${location.lng})`,
+  jsonData: location,
 
-  // Additional typed data for GUI
-  guiData: {
+  data: {
     type: "map",
     center: { lat: location.lat, lng: location.lng },
     zoom: 15,
@@ -144,11 +146,11 @@ presentForm({
   ]
 });
 
-// Returns to LLM
+// Return ToolResult
 return {
-  llmResponse: "Form created with 5 fields: Recipe Preferences",
+  message: "Form created with 5 fields: Recipe Preferences",
 
-  guiData: {
+  data: {
     type: "form",
     title: "Recipe Preferences",
     fields: [/* field definitions */]
@@ -204,11 +206,11 @@ Cook spaghetti in salted water...
   `
 });
 
-// Returns to LLM
+// Return ToolResult
 return {
-  llmResponse: "Created markdown document: Spaghetti Carbonara Recipe",
+  message: "Created markdown document: Spaghetti Carbonara Recipe",
 
-  guiData: {
+  data: {
     type: "document",
     markdown: "# Spaghetti Carbonara\n\n![...](generated-image-url.png)..." // with images generated
   },
