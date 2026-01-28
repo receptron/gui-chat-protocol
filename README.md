@@ -7,6 +7,8 @@ TypeScript type definitions for the GUI Chat Protocol plus lightweight Vue and R
 ## Documentation Map
 
 - `README.md` (this file): package usage, exports, and integration guidance
+- `spec/API_REFERENCE.md`: canonical type signatures for core, Vue, and React APIs
+- `spec/CREATING_A_PLUGIN.md`: step-by-step plugin authoring guide
 - `spec/GUI_CHAT_PROTOCOL.md`: high-level protocol design, motivation, and long-form examples
 - `AGENTS.md`: contributor workflow, scripts, and review requirements
 
@@ -88,188 +90,11 @@ import { ToolPluginReact } from "gui-chat-protocol/react";
 
 ## API Reference
 
-### Core Types
-
-#### ToolPluginCore
-
-The base plugin interface (framework-agnostic):
-
-```typescript
-interface ToolPluginCore<T, J, A, H, S> {
-  // Tool definition for LLM function calling
-  toolDefinition: ToolDefinition;
-
-  // Execute function called when LLM invokes the tool
-  execute: (context: ToolContext, args: A) => Promise<ToolResult<T, J>>;
-
-  // Message shown while generating
-  generatingMessage: string;
-
-  // Check if plugin is enabled based on server capabilities
-  isEnabled: (startResponse?: S | null) => boolean;
-
-  // Optional: Input handlers for files, clipboard, etc.
-  inputHandlers?: H[];
-
-  // Optional: System prompt additions
-  systemPrompt?: string;
-
-  // Optional: Sample arguments for testing
-  samples?: ToolSample[];
-
-  // Optional: Backend types this plugin requires
-  backends?: BackendType[];
-}
-```
-
-#### ToolResult
-
-Result returned from plugin execution:
-
-```typescript
-interface ToolResult<T, J> {
-  message: string;           // Status message for the LLM
-  data?: T;                  // UI data (not visible to LLM)
-  jsonData?: J;              // Data passed to the LLM
-  instructions?: string;     // Follow-up instructions for LLM
-  title?: string;            // Display title
-  updating?: boolean;        // Update existing result vs create new
-}
-```
-
-#### ToolContext
-
-Context passed to the execute function:
-
-```typescript
-interface ToolContext {
-  currentResult?: ToolResult | null;  // Current result being updated
-  app?: ToolContextApp;               // App-provided functions
-}
-
-interface ToolContextApp {
-  getConfig: <T>(key: string) => T | undefined;
-  setConfig: (key: string, value: unknown) => void;
-  // App can add custom functions (e.g., generateImage, browse, etc.)
-}
-```
-
-### Input Handlers
-
-Plugins can accept various input types:
-
-```typescript
-type InputHandler =
-  | FileInputHandler        // File uploads
-  | ClipboardImageInputHandler  // Paste from clipboard
-  | UrlInputHandler         // URL processing
-  | TextInputHandler        // Text patterns
-  | CameraInputHandler      // Camera capture
-  | AudioInputHandler;      // Audio recording
-```
-
-### Vue Types
-
-```typescript
-import { ToolPlugin } from "gui-chat-protocol/vue";
-
-interface ToolPlugin<T, J, A, H, S> extends ToolPluginCore<T, J, A, H, S> {
-  viewComponent?: Component;     // Full view component
-  previewComponent?: Component;  // Thumbnail/preview component
-}
-```
-
-### React Types
-
-```typescript
-import { ToolPluginReact, ViewComponentProps, PreviewComponentProps } from "gui-chat-protocol/react";
-
-interface ToolPluginReact<T, J, A, H, S> extends ToolPluginCore<T, J, A, H, S> {
-  ViewComponent?: ComponentType<ViewComponentProps<T, J>>;
-  PreviewComponent?: ComponentType<PreviewComponentProps<T, J>>;
-}
-```
+Detailed type signatures now live in [`spec/API_REFERENCE.md`](spec/API_REFERENCE.md). Keep this README focused on architecture, tooling, and integration guidance.
 
 ## Creating a Plugin
 
-### Step 1: Define Plugin-Specific Types
-
-```typescript
-// src/core/types.ts
-export interface MyPluginData {
-  // Data for UI (not sent to LLM)
-}
-
-export interface MyPluginArgs {
-  // Arguments from LLM function call
-}
-```
-
-### Step 2: Create Core Plugin (Framework-Agnostic)
-
-```typescript
-// src/core/plugin.ts
-import type { ToolPluginCore, ToolContext, ToolResult } from "gui-chat-protocol";
-import type { MyPluginData, MyPluginArgs } from "./types";
-
-export const pluginCore: ToolPluginCore<MyPluginData, never, MyPluginArgs> = {
-  toolDefinition: {
-    type: "function",
-    name: "myPlugin",
-    description: "Description for the LLM",
-    parameters: {
-      type: "object",
-      properties: { /* ... */ },
-      required: [],
-    },
-  },
-  execute: async (context, args) => {
-    // Plugin logic here
-    return {
-      message: "Success",
-      data: { /* MyPluginData */ },
-    };
-  },
-  generatingMessage: "Processing...",
-  isEnabled: () => true,
-};
-```
-
-### Step 3: Create Vue Plugin
-
-```typescript
-// src/vue/index.ts
-import type { ToolPlugin } from "gui-chat-protocol/vue";
-import { pluginCore } from "../core/plugin";
-import View from "./View.vue";
-import Preview from "./Preview.vue";
-
-export const plugin: ToolPlugin<MyPluginData, never, MyPluginArgs> = {
-  ...pluginCore,
-  viewComponent: View,
-  previewComponent: Preview,
-};
-
-export default { plugin };
-```
-
-### Step 4: Create React Plugin
-
-```typescript
-// src/react/index.ts
-import type { ToolPluginReact } from "gui-chat-protocol/react";
-import { pluginCore } from "../core/plugin";
-import { View } from "./View";
-import { Preview } from "./Preview";
-
-export const plugin: ToolPluginReact<MyPluginData, never, MyPluginArgs> = {
-  ...pluginCore,
-  ViewComponent: View,
-  PreviewComponent: Preview,
-};
-
-export default { plugin };
-```
+A complete walkthrough (types → core plugin → Vue/React wrappers) now lives in [`spec/CREATING_A_PLUGIN.md`](spec/CREATING_A_PLUGIN.md).
 
 ## Example Implementations
 
@@ -351,20 +176,6 @@ const result = await Plugin.plugin.execute(context, args);
 | React 18/19 | `gui-chat-protocol/react` | `ToolPluginReact` |
 
 Both Vue and React are optional peer dependencies - only install what you need.
-
-## TypeScript Support
-
-Full TypeScript support with generic type parameters:
-
-```typescript
-// T = Tool data type (UI only)
-// J = JSON data type (sent to LLM)
-// A = Arguments type
-// H = Input handler type (extensible)
-// S = Start response type (app-specific)
-
-type ToolPlugin<T, J, A, H, S>
-```
 
 ## License
 
