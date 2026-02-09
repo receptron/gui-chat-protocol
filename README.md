@@ -1,3 +1,4 @@
+[![npm version](https://badge.fury.io/js/gui-chat-protocol.svg)](https://badge.fury.io/js/gui-chat-protocol)
 # GUI Chat Protocol
 
 TypeScript type definitions for the GUI Chat Protocol plus lightweight Vue and React adapters. These primitives let you build plugins that expose GUI-capable tool calls to any chat application.
