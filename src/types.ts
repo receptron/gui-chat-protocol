@@ -90,6 +90,10 @@ export interface ToolDefinition {
   type: "function";
   name: string;
   description: string;
+  /** System-prompt instruction telling the LLM when/how to use this tool.
+   *  Unlike `description` (which is part of the tool schema sent to the LLM),
+   *  `prompt` is injected into the system prompt by the host application. */
+  prompt?: string;
   parameters?: {
     type: "object";
     properties: Record<string, JsonSchemaProperty>;
@@ -168,6 +172,7 @@ export interface ToolPluginCore<
   waitingMessage?: string;
   isEnabled: (startResponse?: S | null) => boolean;
   delayAfterExecution?: number;
+  /** @deprecated Use {@link ToolDefinition.prompt} instead. */
   systemPrompt?: string;
   inputHandlers?: H[];
   configSchema?: PluginConfigSchema;
