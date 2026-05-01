@@ -34,6 +34,7 @@ export interface ToolResult<T = unknown, J = unknown> {
   uuid?: string;
   message: string; // status message sent back to the LLM about the tool execution result
   title?: string;
+  action?: string; // sub-action / verb the tool was invoked with (e.g. "openApp", "addEntry"); used by hosts to label multi-feature tool results in the UI
   jsonData?: J; // data to be passed to the LLM
   instructions?: string; // follow-up instructions for the LLM
   instructionsRequired?: boolean; // if true, instructions will be sent even if suppressInstructions is enabled
