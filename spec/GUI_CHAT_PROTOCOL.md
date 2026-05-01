@@ -59,7 +59,7 @@ When a tool executes, it returns a `ToolResult` with two relevant payloads:
 1. **LLM response fields** – `message` (required) and optional `jsonData` that the LLM consumes to continue the conversation
 2. **GUI payload** – `data`, a structured object tagged with a `type` identifier (e.g., `"image"`, `"map"`, `"game"`)
 
-Optional `instructions`, `title`, and `updating` fields help the LLM or UI understand how to follow up.
+Optional `instructions`, `title`, `action`, and `updating` fields help the LLM or UI understand how to follow up. `action` carries the sub-action verb the tool was invoked with (e.g. `"openApp"`, `"addEntry"`), letting hosts label multi-feature tool results in the UI without inspecting the call args.
 
 The **type** within `ToolResult.data` determines which visual component renders it:
 
