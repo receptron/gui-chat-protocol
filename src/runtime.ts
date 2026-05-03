@@ -74,12 +74,6 @@ export interface PluginFetchJsonOptions<T> extends PluginFetchOptions {
   parse: (raw: unknown) => T;
 }
 
-export interface PluginNotifyMessage {
-  title: string;
-  body?: string;
-  level?: "info" | "warn" | "error";
-}
-
 /**
  * Runtime handed to a plugin's `definePlugin(setup)` factory at load time.
  * The plugin closes over the destructured fields; handlers reference them
@@ -147,9 +141,6 @@ export interface PluginRuntime {
    */
   fetchJson(url: string, opts?: PluginFetchOptions): Promise<unknown>;
   fetchJson<T>(url: string, opts: PluginFetchJsonOptions<T>): Promise<T>;
-
-  /** Publish a notification through the host's notifications channel. */
-  notify(msg: PluginNotifyMessage): void;
 }
 
 // ============================================================================

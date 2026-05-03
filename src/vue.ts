@@ -7,7 +7,6 @@
 
 import { inject, type Component, type InjectionKey, type Ref } from "vue";
 import type { ToolPluginCore, InputHandler } from "./index";
-import type { PluginNotifyMessage } from "./runtime";
 
 // Re-export all core types
 export * from "./index";
@@ -53,9 +52,6 @@ export interface BrowserPluginRuntime {
    * call sites.
    */
   openUrl(url: string): void;
-
-  /** Show a host-managed toast / notification. */
-  notify(msg: PluginNotifyMessage): void;
 
   /**
    * POST `args` to this plugin's server-side dispatch route
