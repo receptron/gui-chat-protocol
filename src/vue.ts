@@ -61,6 +61,26 @@ export interface BrowserPluginRuntime {
    * Throws on network error or non-2xx response.
    */
   dispatch<T = unknown>(args: object): Promise<T>;
+
+  /**
+   * Optional URL map for plugins that need more than the single
+   * `dispatch` endpoint — typically REST-shaped plugins with
+   * multiple sub-resources (`items`, `items/:id`, `columns`, …)
+   * where folding everything through `dispatch(args)` would force a
+   * server-side rewrite to a single action-discriminated POST.
+   *
+   * Each entry's value is the full URL the plugin should call
+   * (`apiPost(endpoints.items, body)` etc.); the host populates the
+   * map at provide time. Single-dispatch plugins (the common runtime-
+   * loaded shape) leave it `undefined` and rely on `dispatch` alone.
+   *
+   * The key set is plugin-defined and host-populated. Plugins that
+   * declare their own `<Name>Endpoints` type can do
+   * `runtime.endpoints as MyEndpoints` to recover named access; the
+   * type stays `Record<string, string>` here so the protocol doesn't
+   * need to know plugin-specific keys.
+   */
+  endpoints?: Readonly<Record<string, string>>;
 }
 
 /**
