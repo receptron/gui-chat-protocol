@@ -149,6 +149,7 @@ interface BrowserPluginRuntime {
   log:     { debug; info; warn; error };
   openUrl: (url: string) => void;                        // target=_blank + noopener,noreferrer
   dispatch<T = unknown>(args: object): Promise<T>;       // POST to this plugin's dispatch route
+  endpoints?: Readonly<Record<string, string>>;          // multi-URL escape hatch (optional)
 }
 ```
 
@@ -165,6 +166,27 @@ const json = await dispatch<{ ok: boolean; bookmarks: Bookmark[] }>({
 ```
 
 The shape of `args` is whatever the plugin's server handler expects (typically a discriminated union by `kind` — see "Action discriminator pattern" below).
+
+### `endpoints` (optional, multi-URL plugins)
+
+For plugins that need more than the single `dispatch` endpoint — typically REST-shaped plugins with several sub-resources (`items`, `items/:id`, `columns`, …) where folding everything through `dispatch(args)` would force a server-side rewrite. The host populates this map at provide time; single-dispatch plugins (the common runtime-loaded shape) leave it `undefined`.
+
+```ts
+// Plugin declares its expected shape
+interface TodoEndpoints {
+  list: string;
+  items: string;
+  item: string;       // route pattern with :id
+  columns: string;
+}
+
+// Plugin reads via the runtime
+const endpoints = runtime.endpoints as TodoEndpoints | undefined;
+if (!endpoints) throw new Error("host did not provide TodoEndpoints");
+await fetch(endpoints.items, { method: "POST", body });
+```
+
+The protocol keeps `endpoints` typed as `Record<string, string>` so it doesn't need to know plugin-specific keys; plugins recover named access via a local interface + `as` cast. The host is responsible for populating the same key set the plugin expects.
 
 ## Action discriminator pattern (recommended)
 

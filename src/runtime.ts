@@ -141,6 +141,20 @@ export interface PluginRuntime {
    */
   fetchJson(url: string, opts?: PluginFetchOptions): Promise<unknown>;
   fetchJson<T>(url: string, opts: PluginFetchJsonOptions<T>): Promise<T>;
+
+  /**
+   * Optional URL map mirroring `BrowserPluginRuntime.endpoints` —
+   * see that field for the rationale. Server-side plugin handlers
+   * rarely need this (they typically service the dispatch endpoint
+   * directly), but the field is defined symmetrically so a
+   * cross-cutting plugin (e.g. one that calls into another plugin's
+   * URL via `runtime.fetch`) doesn't have to import the host's
+   * config.
+   *
+   * Single-dispatch plugins (the common runtime-loaded shape) leave
+   * this `undefined`.
+   */
+  endpoints?: Readonly<Record<string, string>>;
 }
 
 // ============================================================================
