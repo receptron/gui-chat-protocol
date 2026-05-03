@@ -1,6 +1,6 @@
 {
   "name": "gui-chat-protocol",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Protocol types for GUI chat plugins - framework-agnostic core with Vue and React adapters",
   "type": "module",
   "exports": {
@@ -18,13 +18,17 @@
       "types": "./dist/react.d.ts",
       "import": "./dist/react.js",
       "require": "./dist/react.cjs"
+    },
+    "./eslint-preset": {
+      "default": "./eslint-preset.js"
     }
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "eslint-preset.js"
   ],
   "scripts": {
     "build": "vite build",
