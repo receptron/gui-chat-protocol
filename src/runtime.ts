@@ -157,33 +157,35 @@ export interface PluginRuntime {
 // ============================================================================
 
 /**
- * What a plugin's `setup` function returns. `TOOL_DEFINITION` is required;
- * a handler must be exported under the same key as `TOOL_DEFINITION.name`
- * (the convention the runtime loader resolves at call time).
+ * What a plugin's `setup` function returns at the **loose** level —
+ * just `TOOL_DEFINITION`. Whether a matching named handler is
+ * type-required is decided by the wrapper type `StrictPluginResult`
+ * (used by `definePlugin` below) rather than by this base shape, so
+ * the runtime loader's `isPluginFactory` predicate can keep using
+ * the loose form when it doesn't yet know the tool name.
  *
- * The conditional `string extends N` branch handles two cases:
- *   - **Strict** (preferred): `TOOL_DEFINITION.name` is a string literal
- *     (e.g. via `name: "myTool" as const`). `N` infers as the literal,
- *     `string extends N` is false, and the mapped-type member
- *     `{ [K in N]: handler }` makes the handler type-required at the
- *     `definePlugin` call site. Forgetting to export a function under
- *     the matching name becomes a TypeScript error.
- *   - **Loose**: `TOOL_DEFINITION.name` widens to `string` (no `as
- *     const` on the name). `string extends N` is true, the mapped
- *     member would otherwise demand every string key be a function,
- *     so we fall back to the looser `[exportName: string]: unknown`
- *     shape. The runtime loader's existing handler-presence warn at
- *     load time is the safety net here.
- *
- * Codex review #10 (item 1) caught the original always-loose shape;
- * this conditional restores type safety for the strict path without
- * breaking authors who haven't adopted `as const` yet.
+ * Codex review #10 caught two iterations of looser-than-intended
+ * checks here; the final form below uses an inference helper so the
+ * strict requirement actually fires at the `definePlugin` call site.
  */
-export type PluginFactoryResult<N extends string = string> = {
-  TOOL_DEFINITION: ToolDefinition & { name: N };
-} & (string extends N
-  ? { [exportName: string]: unknown }
-  : { [K in N]: (args: never) => unknown | Promise<unknown> });
+export interface PluginFactoryResult {
+  TOOL_DEFINITION: ToolDefinition;
+  [exportName: string]: unknown;
+}
+
+/**
+ * Compile-time strict shape used to constrain `definePlugin`'s setup
+ * return type. Extracts the `name` literal out of `T.TOOL_DEFINITION`
+ * and demands a handler key matching it. When `name` widens to
+ * `string` (no `as const`), the strict check degrades to the loose
+ * `PluginFactoryResult` and the runtime loader's load-time warn is
+ * the safety net.
+ */
+export type StrictPluginResult<T> = T extends { TOOL_DEFINITION: { name: infer N extends string } }
+  ? string extends N
+    ? PluginFactoryResult
+    : T & { [K in N]: (args: never) => unknown | Promise<unknown> }
+  : never;
 
 /**
  * Identity function for type inference. Same philosophy as
@@ -191,18 +193,20 @@ export type PluginFactoryResult<N extends string = string> = {
  * TypeScript thread the runtime/result types so the plugin author
  * gets full IntelliSense on `runtime.X` without manual annotations.
  *
- * The `N` generic is inferred from `TOOL_DEFINITION.name`. To make
- * this work the plugin author should declare the name as a
- * literal, typically by `as const`:
+ * Generic placement (T inferred from setup's return) lets
+ * `StrictPluginResult<T>` extract `TOOL_DEFINITION.name` and require
+ * a matching named handler — Codex review #10 iter-2 caught that an
+ * earlier `<N extends string, T extends PluginFactoryResult<N>>`
+ * shape would not actually narrow `N` at the call site.
  *
- *   TOOL_DEFINITION: { type: "function" as const, name: "myTool", ... }
+ * Plugin authors should declare `name` as a literal (`as const`) so
+ * the strict handler check fires:
  *
- * Without `as const` the inferred name widens to `string`, which still
- * type-checks but loses the handler-key requirement (the mapped-type
- * member becomes `[K in string]` which is satisfied by any plain
- * record). The runtime loader still warns at load time, so this is a
- * graceful degradation — but plugin authors should prefer the
- * literal-narrowing form for the strict check.
+ *   TOOL_DEFINITION: { type: "function" as const, name: "myTool" as const, ... }
+ *
+ * Without `as const`, `N` widens to `string` and the strict check
+ * gracefully degrades to the loose runtime warn (see
+ * `StrictPluginResult` above).
  *
  * @example
  * ```ts
@@ -221,8 +225,8 @@ export type PluginFactoryResult<N extends string = string> = {
  * }));
  * ```
  */
-export function definePlugin<N extends string, T extends PluginFactoryResult<N>>(
-  setup: (runtime: PluginRuntime) => T,
+export function definePlugin<T extends PluginFactoryResult>(
+  setup: (runtime: PluginRuntime) => T & StrictPluginResult<T>,
 ): (runtime: PluginRuntime) => T {
   return setup;
 }
