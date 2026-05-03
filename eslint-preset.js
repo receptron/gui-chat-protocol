@@ -33,6 +33,15 @@ const restrictedImportPaths = [
   { name: "node:fs/promises", message: FS_MESSAGE },
   { name: "path", message: PATH_MESSAGE },
   { name: "node:path", message: PATH_MESSAGE },
+  // Subpath aliases — Node exposes the same path APIs via these, so
+  // missing them here would let plugin authors bypass the path
+  // restriction by importing from `node:path/posix` (or
+  // `path/posix`) instead. `path/win32` covers the same hole on the
+  // Windows side. Codex review #10 caught this.
+  { name: "path/posix", message: PATH_MESSAGE },
+  { name: "node:path/posix", message: PATH_MESSAGE },
+  { name: "path/win32", message: PATH_MESSAGE },
+  { name: "node:path/win32", message: PATH_MESSAGE },
 ];
 
 export default [

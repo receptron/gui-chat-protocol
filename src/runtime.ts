@@ -63,11 +63,15 @@ export interface PluginFetchOptions extends PluginFetchInit {
 
 export interface PluginFetchJsonOptions<T> extends PluginFetchOptions {
   /**
-   * Optional Zod-agnostic validator. Pass a function that returns the
-   * narrowed value (or throws). Idiomatic with Zod:
-   * `parse: (raw) => MySchema.parse(raw)`.
+   * Zod-agnostic validator. Pass a function that returns the narrowed
+   * value (or throws). Idiomatic with Zod:
+   *   `parse: (raw) => MySchema.parse(raw)`.
+   *
+   * Required when calling `fetchJson<T>` for any T other than
+   * `unknown` — the overload signatures below enforce this so callers
+   * never get a strongly-typed value out of unvalidated JSON.
    */
-  parse?: (raw: unknown) => T;
+  parse: (raw: unknown) => T;
 }
 
 export interface PluginNotifyMessage {
@@ -130,8 +134,19 @@ export interface PluginRuntime {
    */
   fetch(url: string, opts?: PluginFetchOptions): Promise<Response>;
 
-  /** `fetch` + `response.json()` + optional Zod-agnostic validator. */
-  fetchJson<T>(url: string, opts?: PluginFetchJsonOptions<T>): Promise<T>;
+  /**
+   * `fetch` + `response.json()` + optional validator.
+   *
+   * - Without `opts.parse`, the result type is `unknown` — callers
+   *   must narrow before use. This prevents strongly-typed access to
+   *   un-validated remote JSON, which is a frequent type-soundness
+   *   bug ("the server promised X, then it didn't").
+   * - With `opts.parse`, the validator's return type narrows the
+   *   promise. Idiomatic with Zod:
+   *   `await fetchJson(url, { parse: (raw) => MySchema.parse(raw) })`.
+   */
+  fetchJson(url: string, opts?: PluginFetchOptions): Promise<unknown>;
+  fetchJson<T>(url: string, opts: PluginFetchJsonOptions<T>): Promise<T>;
 
   /** Publish a notification through the host's notifications channel. */
   notify(msg: PluginNotifyMessage): void;
@@ -143,15 +158,32 @@ export interface PluginRuntime {
 
 /**
  * What a plugin's `setup` function returns. `TOOL_DEFINITION` is required;
- * the handler is exported under the same key as `TOOL_DEFINITION.name`
+ * a handler must be exported under the same key as `TOOL_DEFINITION.name`
  * (the convention the runtime loader resolves at call time).
+ *
+ * The conditional `string extends N` branch handles two cases:
+ *   - **Strict** (preferred): `TOOL_DEFINITION.name` is a string literal
+ *     (e.g. via `name: "myTool" as const`). `N` infers as the literal,
+ *     `string extends N` is false, and the mapped-type member
+ *     `{ [K in N]: handler }` makes the handler type-required at the
+ *     `definePlugin` call site. Forgetting to export a function under
+ *     the matching name becomes a TypeScript error.
+ *   - **Loose**: `TOOL_DEFINITION.name` widens to `string` (no `as
+ *     const` on the name). `string extends N` is true, the mapped
+ *     member would otherwise demand every string key be a function,
+ *     so we fall back to the looser `[exportName: string]: unknown`
+ *     shape. The runtime loader's existing handler-presence warn at
+ *     load time is the safety net here.
+ *
+ * Codex review #10 (item 1) caught the original always-loose shape;
+ * this conditional restores type safety for the strict path without
+ * breaking authors who haven't adopted `as const` yet.
  */
-export interface PluginFactoryResult {
-  TOOL_DEFINITION: ToolDefinition;
-  // Handler under TOOL_DEFINITION.name is required; other keys may be
-  // exported but the loader only invokes the named one.
-  [exportName: string]: unknown;
-}
+export type PluginFactoryResult<N extends string = string> = {
+  TOOL_DEFINITION: ToolDefinition & { name: N };
+} & (string extends N
+  ? { [exportName: string]: unknown }
+  : { [K in N]: (args: never) => unknown | Promise<unknown> });
 
 /**
  * Identity function for type inference. Same philosophy as
@@ -159,10 +191,28 @@ export interface PluginFactoryResult {
  * TypeScript thread the runtime/result types so the plugin author
  * gets full IntelliSense on `runtime.X` without manual annotations.
  *
+ * The `N` generic is inferred from `TOOL_DEFINITION.name`. To make
+ * this work the plugin author should declare the name as a
+ * literal, typically by `as const`:
+ *
+ *   TOOL_DEFINITION: { type: "function" as const, name: "myTool", ... }
+ *
+ * Without `as const` the inferred name widens to `string`, which still
+ * type-checks but loses the handler-key requirement (the mapped-type
+ * member becomes `[K in string]` which is satisfied by any plain
+ * record). The runtime loader still warns at load time, so this is a
+ * graceful degradation — but plugin authors should prefer the
+ * literal-narrowing form for the strict check.
+ *
  * @example
  * ```ts
  * export default definePlugin(({ pubsub, files, locale }) => ({
- *   TOOL_DEFINITION: { name: "myTool", description: "...", parameters: { ... } },
+ *   TOOL_DEFINITION: {
+ *     type: "function" as const,
+ *     name: "myTool" as const,
+ *     description: "...",
+ *     parameters: { type: "object", properties: {}, required: [] },
+ *   },
  *   async myTool(args) {
  *     await files.data.write("state.json", JSON.stringify(args));
  *     pubsub.publish("changed", {});
@@ -171,14 +221,19 @@ export interface PluginFactoryResult {
  * }));
  * ```
  */
-export function definePlugin<T extends PluginFactoryResult>(
+export function definePlugin<N extends string, T extends PluginFactoryResult<N>>(
   setup: (runtime: PluginRuntime) => T,
 ): (runtime: PluginRuntime) => T {
   return setup;
 }
 
 /** Type guard the runtime loader uses to detect factory-shape vs. legacy
- *  raw-export plugins. Exported so other host code can share the test. */
+ *  raw-export plugins. Exported so other host code can share the test.
+ *  Loosened to the widened `PluginFactoryResult<string>` because the
+ *  caller (the runtime loader) doesn't know the plugin's tool name at
+ *  this point — it pulls `TOOL_DEFINITION` from the factory's return
+ *  value to discover it. The strict, name-narrowed form is enforced at
+ *  the `definePlugin` call site instead. */
 export function isPluginFactory(value: unknown): value is (runtime: PluginRuntime) => PluginFactoryResult {
   return typeof value === "function";
 }

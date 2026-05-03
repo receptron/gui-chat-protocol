@@ -543,6 +543,12 @@ GUI Chat Protocol provides the foundation for this future—a future where compu
 
 **The operating system becomes a conversational partner, not a collection of apps.**
 
+## Plugin Runtime API (v0.3+)
+
+`gui-chat-protocol@0.3.0` adds an opt-in factory-shape plugin contract that gives plugins a host-constructed, per-plugin scoped runtime (`pubsub`, `files.{data,config}`, `log`, `fetch`, `notify`, `locale`, `dispatch`). See [`PLUGIN_RUNTIME.md`](./PLUGIN_RUNTIME.md) for the contract, the type surface, the path-normalisation rules, and the recommended ESLint preset.
+
+The legacy `(context, args)` shape covered in [`CREATING_A_PLUGIN.md`](./CREATING_A_PLUGIN.md) continues to work without changes. The factory shape is the recommended form for new plugins.
+
 ## Conclusion
 
 GUI Chat Protocol represents a paradigm shift from text-only to multi-modal conversational AI. By leveraging existing tool calling infrastructure and adding a visual rendering layer, it enables LLMs to produce rich, interactive experiences while remaining compatible with all major language models.
