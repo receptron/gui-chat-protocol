@@ -184,8 +184,18 @@ export interface PluginFactoryResult {
 export type StrictPluginResult<T> = T extends { TOOL_DEFINITION: { name: infer N extends string } }
   ? string extends N
     ? PluginFactoryResult
-    : T & { [K in N]: (args: never) => unknown | Promise<unknown> }
+    : T & { [K in N]: (args: unknown) => unknown | Promise<unknown> }
   : never;
+// `(args: unknown)` not `(args: never)`: the parameter type is the
+// **contextual** type a plugin author sees when writing
+// `async myTool(args) { ... }` without an explicit annotation. With
+// `never` the plugin's `args` would infer as `never` and any access
+// would fail TS7006 / TS2339; with `unknown` it infers as `unknown`
+// (matching the dispatch route's actual contract — the plugin
+// validates args itself, typically via Zod). Function parameter
+// contravariance still lets the constraint accept any concrete
+// `(args: T) => ...` shape from the author. Codex review #10 iter-3
+// caught the `never` regression.
 
 /**
  * Identity function for type inference. Same philosophy as
@@ -208,6 +218,14 @@ export type StrictPluginResult<T> = T extends { TOOL_DEFINITION: { name: infer N
  * gracefully degrades to the loose runtime warn (see
  * `StrictPluginResult` above).
  *
+ * **Annotate the handler parameter explicitly** as `args: unknown`.
+ * TypeScript can't propagate the contextual type into the method
+ * parameter when it's still inferring `T` from the same return value
+ * (circular), so leaving `args` un-annotated trips `noImplicitAny`.
+ * Always:
+ *
+ *   async myTool(args: unknown) { ... }
+ *
  * @example
  * ```ts
  * export default definePlugin(({ pubsub, files, locale }) => ({
@@ -217,7 +235,8 @@ export type StrictPluginResult<T> = T extends { TOOL_DEFINITION: { name: infer N
  *     description: "...",
  *     parameters: { type: "object", properties: {}, required: [] },
  *   },
- *   async myTool(args) {
+ *   async myTool(args: unknown) {
+ *     // narrow `args` here — typically with Zod
  *     await files.data.write("state.json", JSON.stringify(args));
  *     pubsub.publish("changed", {});
  *     return { ok: true };

@@ -14,11 +14,29 @@ import { definePlugin } from "gui-chat-protocol";
 export default definePlugin((runtime) => {
   // setup runs once at plugin load, with the per-plugin runtime
   return {
-    TOOL_DEFINITION: { /* … */ },
-    async myTool(args) { /* … */ },
+    TOOL_DEFINITION: {
+      type: "function" as const,
+      name: "myTool" as const,    // `as const` enables the strict handler-key check
+      description: "…",
+      parameters: { /* … */ },
+    },
+    async myTool(args: unknown) { /* … */ },   // explicit `: unknown` — see note below
   };
 });
 ```
+
+> **Two annotation requirements** for the strict-mode handler check
+> (`StrictPluginResult<T>`) to fire:
+>
+> 1. `TOOL_DEFINITION.name` must be a string **literal**, typically via
+>    `name: "myTool" as const`. Without `as const`, `name` widens to
+>    `string` and the check degrades to the loose runtime warn.
+> 2. The handler parameter must be **explicitly annotated** as
+>    `args: unknown`. TypeScript can't propagate contextual types into
+>    a method parameter while the surrounding generic is being
+>    inferred from the same return value (circular inference), so a
+>    bare `async myTool(args) { ... }` trips `noImplicitAny`. The
+>    handler validates `args` itself, typically via Zod.
 
 The factory:
 
