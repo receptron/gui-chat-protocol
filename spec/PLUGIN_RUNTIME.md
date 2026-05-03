@@ -59,7 +59,6 @@ interface PluginRuntime {
   fetch:     (url, opts?: PluginFetchOptions) => Promise<Response>;
   fetchJson: <T>(url, opts: PluginFetchJsonOptions<T>) => Promise<T>;
   fetchJson: (url, opts?: PluginFetchOptions) => Promise<unknown>;
-  notify:    (msg: PluginNotifyMessage) => void;
 }
 ```
 
@@ -133,14 +132,6 @@ const data = await runtime.fetchJson(url, {
 
 Logger bridge to the host's central logger, prefixed with `plugin/<pkg>` automatically. Use this instead of `console.*` so plugin output lands in the central log files.
 
-### `notify`
-
-Publishes to the host's notification channel:
-
-```ts
-runtime.notify({ title: "Saved", body: "3 items", level: "info" });
-```
-
 ## `BrowserPluginRuntime` (browser side)
 
 Available via `useRuntime()` from `gui-chat-protocol/vue` inside any plugin Vue component:
@@ -148,7 +139,7 @@ Available via `useRuntime()` from `gui-chat-protocol/vue` inside any plugin Vue 
 ```ts
 import { useRuntime } from "gui-chat-protocol/vue";
 
-const { pubsub, locale, openUrl, notify, dispatch, log } = useRuntime();
+const { pubsub, locale, openUrl, dispatch, log } = useRuntime();
 ```
 
 ```ts
@@ -157,7 +148,6 @@ interface BrowserPluginRuntime {
   locale:  Ref<string>;                                  // reactive
   log:     { debug; info; warn; error };
   openUrl: (url: string) => void;                        // target=_blank + noopener,noreferrer
-  notify:  (msg: PluginNotifyMessage) => void;
   dispatch<T = unknown>(args: object): Promise<T>;       // POST to this plugin's dispatch route
 }
 ```
