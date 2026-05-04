@@ -75,14 +75,26 @@ export interface PluginFetchJsonOptions<T> extends PluginFetchOptions {
 }
 
 /**
+ * Default shape for `PluginRuntime['endpoints']` — see
+ * `BrowserPluginRuntime['endpoints']` for the same rationale on the
+ * Vue side. Plugin authors pin a tighter shape via the `E` type
+ * parameter on `PluginRuntime<E>` / `definePlugin<…, E>`.
+ */
+export type DefaultServerPluginEndpoints = Readonly<Record<string, unknown>>;
+
+/**
  * Runtime handed to a plugin's `definePlugin(setup)` factory at load time.
  * The plugin closes over the destructured fields; handlers reference them
  * as bare API calls (no `context.` indirection).
  *
  * `pubsub` / `files.*` / `log` are scoped per plugin. The plugin cannot
  * spell another plugin's channel or file path through the API.
+ *
+ * Optional `E` type parameter pins the `endpoints` map's shape. Defaults
+ * to `DefaultServerPluginEndpoints` for backward compatibility — non-
+ * generic usage (`PluginRuntime`) keeps working unchanged (0.3.2).
  */
-export interface PluginRuntime {
+export interface PluginRuntime<E = DefaultServerPluginEndpoints> {
   /**
    * Scoped pub/sub publisher. `publish("foo", payload)` is internally
    * routed to channel `plugin:<pkg>:foo`. The plugin cannot publish to
@@ -154,7 +166,7 @@ export interface PluginRuntime {
    * Single-dispatch plugins (the common runtime-loaded shape) leave
    * this `undefined`.
    */
-  endpoints?: Readonly<Record<string, string>>;
+  endpoints?: E;
 }
 
 // ============================================================================
