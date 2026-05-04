@@ -16,13 +16,30 @@ export * from "./index";
 // ============================================================================
 
 /**
+ * Default shape for `BrowserPluginRuntime['endpoints']` when the
+ * caller doesn't pin a specific plugin's endpoint type. Values are
+ * `unknown` because hosts populate the map with plugin-specific
+ * shapes (e.g. mulmoclaude provides `{ method, url }` records); each
+ * plugin pins the precise shape via the `E` type parameter on
+ * `useRuntime<E>()` below.
+ */
+export type DefaultPluginEndpoints = Readonly<Record<string, unknown>>;
+
+/**
  * Runtime exposed to a plugin's Vue components via `useRuntime()`. The
  * host wraps a plugin's component subtree in a scope provider that
  * `provide`s a per-plugin instance to `PLUGIN_RUNTIME_KEY`.
  *
+ * Optional type parameter `E` pins the `endpoints` map's shape so a
+ * plugin author can write `useRuntime<TodoEndpoints>()` and read
+ * `runtime.endpoints.list.url` without an `as` cast (0.3.2). Defaults
+ * to `DefaultPluginEndpoints` for backward compatibility — non-generic
+ * usage (`BrowserPluginRuntime` / `useRuntime()`) keeps working
+ * unchanged.
+ *
  * Spec: https://github.com/receptron/mulmoclaude/issues/1110
  */
-export interface BrowserPluginRuntime {
+export interface BrowserPluginRuntime<E = DefaultPluginEndpoints> {
   /**
    * Scoped pub/sub client. `subscribe("foo", handler)` is internally
    * routed to channel `plugin:<pkg>:foo`. Returns an unsubscribe
@@ -61,6 +78,31 @@ export interface BrowserPluginRuntime {
    * Throws on network error or non-2xx response.
    */
   dispatch<T = unknown>(args: object): Promise<T>;
+
+  /**
+   * Optional URL map for plugins that need more than the single
+   * `dispatch` endpoint — typically REST-shaped plugins with
+   * multiple sub-resources (`items`, `items/:id`, `columns`, …)
+   * where folding everything through `dispatch(args)` would force a
+   * server-side rewrite to a single action-discriminated POST.
+   *
+   * The host populates the map at provide time; the value shape is
+   * host-defined (mulmoclaude provides `{ method, url }` records).
+   * Single-dispatch plugins (the common runtime-loaded shape) leave
+   * it `undefined` and rely on `dispatch` alone.
+   *
+   * Pin the shape via `useRuntime<E>()`'s type parameter:
+   *
+   * ```ts
+   * interface TodoEndpoints { list: { method: "GET"; url: string } }
+   * const runtime = useRuntime<TodoEndpoints>();
+   * runtime.endpoints?.list.url; // ← typed, no cast
+   * ```
+   *
+   * Defaults to `DefaultPluginEndpoints` (Readonly<Record<string,
+   * unknown>>) when called without a type parameter.
+   */
+  endpoints?: E;
 }
 
 /**
@@ -74,15 +116,26 @@ export const PLUGIN_RUNTIME_KEY: InjectionKey<BrowserPluginRuntime> = Symbol("gu
  * Composable that returns the plugin's `BrowserPluginRuntime`. Throws
  * a descriptive error if called outside the host's scope provider so
  * misuse fails loudly during development.
+ *
+ * Pass a plugin-specific endpoints type as the optional `E` type
+ * parameter to drop the cast on `runtime.endpoints`:
+ *
+ * ```ts
+ * const runtime = useRuntime<TodoEndpoints>();
+ * runtime.endpoints?.list.url;  // ← typed, no `as`
+ * ```
+ *
+ * Without the type parameter, `endpoints` falls back to
+ * `DefaultPluginEndpoints` (Readonly<Record<string, unknown>>).
  */
-export function useRuntime(): BrowserPluginRuntime {
+export function useRuntime<E = DefaultPluginEndpoints>(): BrowserPluginRuntime<E> {
   const runtime = inject(PLUGIN_RUNTIME_KEY);
   if (!runtime) {
     throw new Error(
       "useRuntime() called outside of <PluginScopedRoot> — the host must provide PLUGIN_RUNTIME_KEY",
     );
   }
-  return runtime;
+  return runtime as BrowserPluginRuntime<E>;
 }
 
 // ============================================================================
