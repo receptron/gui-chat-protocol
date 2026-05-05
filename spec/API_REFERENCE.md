@@ -32,6 +32,31 @@ interface ToolResult<T, J> {
 }
 ```
 
+#### Rendering vs narrate-only
+
+Hosts treat `data` and `jsonData` as the two "view payload" signals. Setting **either** indicates the plugin wants a GUI card rendered for this result; setting **neither** makes the result *narrate-only* — `message` / `instructions` reach the LLM, but no card is shown. Narrate-only is the right shape for actions whose effect is purely informational for the LLM (fetching a list the LLM will summarize next turn, returning a validation error, etc.).
+
+#### Choosing `data` vs `jsonData` vs both
+
+| Field | Audience | When to set it |
+|---|---|---|
+| `data` | Plugin's view / preview component | The view needs a typed payload that the LLM should NOT see. |
+| `jsonData` | The LLM (returned alongside `message` / `instructions`) | The LLM needs to read the structured result back on subsequent turns. |
+| **Both** | View AND LLM (same shape) | The same payload needs to reach both audiences — set `data: payload, jsonData: payload`. |
+
+Worked examples:
+
+```ts
+// Card with view-only payload (LLM only needs to know it succeeded)
+return { message: "Generated image", data: { url, prompt } };
+
+// Narrate-only (no card)
+return { message: `Found ${reports.length} reports`, instructions: "..." };
+
+// Card + LLM-readable payload — same payload, two audiences
+return { message: "Form presented", data: form, jsonData: form, instructions: "..." };
+```
+
 ### ToolContext
 
 ```typescript

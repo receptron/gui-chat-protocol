@@ -27,7 +27,49 @@ export type BackendType =
 // ============================================================================
 
 /**
- * Result returned from plugin execution
+ * Result returned from plugin execution.
+ *
+ * ### Rendering vs narrate-only
+ *
+ * Hosts treat `data` and `jsonData` as the two "view payload"
+ * signals — setting **either** indicates the plugin wants a GUI
+ * card rendered for this result; setting **neither** makes the
+ * result *narrate-only* (`message` / `instructions` flow to the
+ * LLM, but no card is shown). Use narrate-only for actions whose
+ * effect is purely informational for the LLM — fetching a list
+ * the LLM will summarize, validation-error returns, etc.
+ *
+ * ### Choosing `data` vs `jsonData` vs both
+ *
+ * - **`data`** — typed payload consumed by the plugin's view /
+ *   preview component (Vue, React, …). The LLM does NOT see
+ *   `data` — it's a private channel from the plugin's executor
+ *   to its UI.
+ * - **`jsonData`** — JSON-serializable shape returned to the LLM
+ *   alongside `message` / `instructions`. Use when the LLM needs
+ *   to read the structured result back on subsequent turns
+ *   (e.g. a quiz definition the LLM must reference, a form spec
+ *   the LLM will recall).
+ * - **Both** — set when the same payload needs to reach both
+ *   audiences. Pattern: `data: payload, jsonData: payload`. The
+ *   view binds the typed shape; the LLM gets the JSON.
+ *
+ * ### Worked examples
+ *
+ * Card + view-only payload (LLM only needs to know it succeeded):
+ * ```ts
+ * return { message: "Generated image", data: { url, prompt } };
+ * ```
+ *
+ * Narrate-only (LLM-readable, no card):
+ * ```ts
+ * return { message: `Found ${reports.length} reports`, instructions: "..." };
+ * ```
+ *
+ * Card + LLM-readable payload (same payload, two audiences):
+ * ```ts
+ * return { message: "Form presented", data: form, jsonData: form, instructions: "..." };
+ * ```
  */
 export interface ToolResult<T = unknown, J = unknown> {
   toolName?: string; // name of the tool that generated this result
@@ -35,12 +77,27 @@ export interface ToolResult<T = unknown, J = unknown> {
   message: string; // status message sent back to the LLM about the tool execution result
   title?: string;
   action?: string; // sub-action / verb the tool was invoked with (e.g. "openApp", "addEntry"); used by hosts to label multi-feature tool results in the UI
-  jsonData?: J; // data to be passed to the LLM
+  /**
+   * JSON-serializable result the LLM reads back alongside
+   * `message` / `instructions`. Setting this (or `data`) signals
+   * the host to render a GUI card; setting neither makes the
+   * result narrate-only. See the interface-level docs for the
+   * choice between `data`, `jsonData`, and both.
+   */
+  jsonData?: J;
   instructions?: string; // follow-up instructions for the LLM
   instructionsRequired?: boolean; // if true, instructions will be sent even if suppressInstructions is enabled
   updating?: boolean; // if true, updates existing result instead of creating new one
   cancelled?: boolean; // if true, operation was cancelled by the user and should not be added to UI
-  data?: T; // tool specific data (for views, not visible to the LLM)
+  /**
+   * Typed payload consumed by the plugin's view / preview
+   * component. Not visible to the LLM. Setting this (or
+   * `jsonData`) signals the host to render a GUI card; setting
+   * neither makes the result narrate-only. See the
+   * interface-level docs for the choice between `data`,
+   * `jsonData`, and both.
+   */
+  data?: T;
   viewState?: Record<string, unknown>; // tool specific view state
 }
 
