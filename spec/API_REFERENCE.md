@@ -32,17 +32,20 @@ interface ToolResult<T, J> {
 }
 ```
 
-#### Rendering vs narrate-only
+#### `data` gates rendering
 
-Hosts treat `data` and `jsonData` as the two "view payload" signals. Setting **either** indicates the plugin wants a GUI card rendered for this result; setting **neither** makes the result *narrate-only* — `message` / `instructions` reach the LLM, but no card is shown. Narrate-only is the right shape for actions whose effect is purely informational for the LLM (fetching a list the LLM will summarize next turn, returning a validation error, etc.).
+**Setting `data` is the host's render-eligibility signal**: a result with `data` renders a GUI card; a result without `data` is *narrate-only* — `message` / `instructions` reach the LLM, but no card is shown. Narrate-only is the right shape for actions whose effect is purely informational for the LLM (fetching a list the LLM will summarize next turn, returning a validation error, etc.).
 
-#### Choosing `data` vs `jsonData` vs both
+`jsonData` is orthogonal to rendering. It's the JSON-serializable copy returned to the LLM alongside `message` / `instructions`, used when the model needs to read the structured result back on subsequent turns. Setting `jsonData` alone does NOT cause a card to render — pair it with `data` if you also want the view to bind the same shape.
 
-| Field | Audience | When to set it |
+#### What to set
+
+| Combination | Behaviour | Use when |
 |---|---|---|
-| `data` | Plugin's view / preview component | The view needs a typed payload that the LLM should NOT see. |
-| `jsonData` | The LLM (returned alongside `message` / `instructions`) | The LLM needs to read the structured result back on subsequent turns. |
-| **Both** | View AND LLM (same shape) | The same payload needs to reach both audiences — set `data: payload, jsonData: payload`. |
+| `data` only | Card renders; LLM sees only `message` | The view needs a typed payload the LLM doesn't need to recall. |
+| Neither | Narrate-only; no card | The action is informational for the LLM (list lookups, validation errors). |
+| Both (`data: payload, jsonData: payload`) | Card renders AND LLM reads the same payload back | The view and the LLM both reason over the same shape (quiz definitions, form specs). |
+| `jsonData` only | No card; LLM gets a JSON copy | Uncommon — equivalent to narrate-only for the GUI. |
 
 Worked examples:
 

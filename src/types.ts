@@ -29,39 +29,42 @@ export type BackendType =
 /**
  * Result returned from plugin execution.
  *
- * ### Rendering vs narrate-only
+ * ### `data` gates rendering
  *
- * Hosts treat `data` and `jsonData` as the two "view payload"
- * signals — setting **either** indicates the plugin wants a GUI
- * card rendered for this result; setting **neither** makes the
- * result *narrate-only* (`message` / `instructions` flow to the
- * LLM, but no card is shown). Use narrate-only for actions whose
- * effect is purely informational for the LLM — fetching a list
- * the LLM will summarize, validation-error returns, etc.
+ * `data` is the host's render-eligibility signal: setting it
+ * means "render a GUI card for this result"; omitting it makes
+ * the result *narrate-only* (`message` / `instructions` flow to
+ * the LLM, but no card is shown). Use narrate-only for actions
+ * whose effect is purely informational for the LLM — fetching a
+ * list the LLM will summarize, validation-error returns, etc.
  *
- * ### Choosing `data` vs `jsonData` vs both
+ * `jsonData` is orthogonal: it's the JSON-serializable copy
+ * returned to the LLM alongside `message` / `instructions` for
+ * cases where the model needs to read the structured result back
+ * on subsequent turns. Setting `jsonData` does NOT, by itself,
+ * cause a card to render — pair it with `data` if you also want
+ * the view to bind the same shape.
  *
- * - **`data`** — typed payload consumed by the plugin's view /
- *   preview component (Vue, React, …). The LLM does NOT see
- *   `data` — it's a private channel from the plugin's executor
- *   to its UI.
- * - **`jsonData`** — JSON-serializable shape returned to the LLM
- *   alongside `message` / `instructions`. Use when the LLM needs
- *   to read the structured result back on subsequent turns
- *   (e.g. a quiz definition the LLM must reference, a form spec
- *   the LLM will recall).
- * - **Both** — set when the same payload needs to reach both
- *   audiences. Pattern: `data: payload, jsonData: payload`. The
- *   view binds the typed shape; the LLM gets the JSON.
+ * ### Choosing what to set
+ *
+ * - **`data` only** — render a card; the LLM only sees `message`.
+ * - **Neither** — narrate-only; no card.
+ * - **Both** (`data: payload, jsonData: payload`) — render a card
+ *   AND let the LLM read the same payload back. Use this when
+ *   the view and the LLM need to reason over the same shape
+ *   (e.g. a quiz definition, a form spec).
+ * - **`jsonData` only** — uncommon; the LLM gets a JSON copy with
+ *   no card. Equivalent to narrate-only as far as the GUI is
+ *   concerned.
  *
  * ### Worked examples
  *
- * Card + view-only payload (LLM only needs to know it succeeded):
+ * Card with view-only payload (LLM only needs to know it succeeded):
  * ```ts
  * return { message: "Generated image", data: { url, prompt } };
  * ```
  *
- * Narrate-only (LLM-readable, no card):
+ * Narrate-only (no card):
  * ```ts
  * return { message: `Found ${reports.length} reports`, instructions: "..." };
  * ```
@@ -79,10 +82,10 @@ export interface ToolResult<T = unknown, J = unknown> {
   action?: string; // sub-action / verb the tool was invoked with (e.g. "openApp", "addEntry"); used by hosts to label multi-feature tool results in the UI
   /**
    * JSON-serializable result the LLM reads back alongside
-   * `message` / `instructions`. Setting this (or `data`) signals
-   * the host to render a GUI card; setting neither makes the
-   * result narrate-only. See the interface-level docs for the
-   * choice between `data`, `jsonData`, and both.
+   * `message` / `instructions`. Orthogonal to rendering — only
+   * `data` causes a card to render. Set this when the LLM needs
+   * to recall the structured result on subsequent turns; pair
+   * with `data` to also render a card bound to the same shape.
    */
   jsonData?: J;
   instructions?: string; // follow-up instructions for the LLM
@@ -91,11 +94,10 @@ export interface ToolResult<T = unknown, J = unknown> {
   cancelled?: boolean; // if true, operation was cancelled by the user and should not be added to UI
   /**
    * Typed payload consumed by the plugin's view / preview
-   * component. Not visible to the LLM. Setting this (or
-   * `jsonData`) signals the host to render a GUI card; setting
-   * neither makes the result narrate-only. See the
-   * interface-level docs for the choice between `data`,
-   * `jsonData`, and both.
+   * component. Not visible to the LLM. **Setting `data` is the
+   * host's render-eligibility signal** — a result without `data`
+   * is treated as narrate-only and no card is rendered. See the
+   * interface-level docs for the full rule and worked examples.
    */
   data?: T;
   viewState?: Record<string, unknown>; // tool specific view state
