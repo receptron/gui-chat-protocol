@@ -113,12 +113,21 @@ export interface PluginRuntime<E = DefaultServerPluginEndpoints> {
 
   /**
    * Scoped file I/O.
-   *   - `data`:   `~/mulmoclaude/data/plugins/<pkg>/`   — backup target
-   *   - `config`: `~/mulmoclaude/config/plugins/<pkg>/` — per-machine UI state
+   *   - `data`:      `~/mulmoclaude/data/plugins/<pkg>/`   — per-plugin private backup target
+   *   - `config`:    `~/mulmoclaude/config/plugins/<pkg>/` — per-plugin private UI state
+   *   - `artifacts`: `~/mulmoclaude/artifacts/`           — SHARED, user-browsable output area
+   *
+   * Unlike `data`/`config` (each sandboxed to a private per-plugin dir),
+   * `artifacts` is rooted at the host's shared artifacts directory so a
+   * plugin can write outputs the user sees in the Files explorer — e.g. a
+   * chart plugin writing `charts/<slug>.chart.json`. Relative paths are
+   * still normalised + traversal-guarded by the host; the plugin owns its
+   * category subdir (`charts/`, `spreadsheets/`, …) by convention.
    */
   files: {
     data: FileOps;
     config: FileOps;
+    artifacts: FileOps;
   };
 
   /**
