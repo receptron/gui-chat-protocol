@@ -54,7 +54,7 @@ The handler signature is `(args: unknown) => unknown | Promise<unknown>`. The ho
 interface PluginRuntime {
   pubsub:    { publish<T>(eventName: string, payload: T): void };
   locale:    string;                                      // host-detected locale snapshot
-  files:     { data: FileOps; config: FileOps };          // scoped to plugin's own dir
+  files:     { data: FileOps; config: FileOps; artifacts: FileOps }; // data/config private; artifacts shared
   log:       { debug; info; warn; error };                // (msg, data?) → void
   fetch:     (url, opts?: PluginFetchOptions) => Promise<Response>;
   fetchJson: <T>(url, opts: PluginFetchJsonOptions<T>) => Promise<T>;
@@ -70,14 +70,15 @@ Scoped publisher. `publish("foo", payload)` routes to channel `plugin:<pkg>:foo`
 
 The host-detected locale at plugin-load time (e.g. `"en"`, `"ja"`). Server-side is a **snapshot**. For reactive locale on the browser side use `BrowserPluginRuntime.locale: Ref<string>`.
 
-### `files: { data; config }`
+### `files: { data; config; artifacts }`
 
-Scoped file I/O. Two separate roots, mirroring the host's own `data/` vs `config/` separation:
+Scoped file I/O. Three roots, mirroring the host's own `data/` vs `config/` vs `artifacts/` separation:
 
-- `files.data`: backup-target user data (e.g. the records the plugin manages on the user's behalf).
-- `files.config`: per-machine plugin settings / UI state (e.g. last-selected book id, sort preferences).
+- `files.data`: backup-target user data (e.g. the records the plugin manages on the user's behalf). **Private**, sandboxed to the plugin's own dir.
+- `files.config`: per-machine plugin settings / UI state (e.g. last-selected book id, sort preferences). **Private**, sandboxed to the plugin's own dir.
+- `files.artifacts`: **shared, user-browsable** output area rooted at the host's `artifacts/` dir. Use it for outputs the user should see in the Files explorer — e.g. a chart plugin writing `charts/<slug>.chart.json`. The plugin owns its category subdir (`charts/`, `spreadsheets/`, …) by convention; relative paths are still normalised + traversal-guarded by the host.
 
-Both expose the same `FileOps` shape:
+All three expose the same `FileOps` shape:
 
 ```ts
 interface FileOps {
