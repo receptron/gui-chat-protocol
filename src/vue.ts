@@ -5,7 +5,7 @@
  * Use these types when building Vue-based plugin UI components.
  */
 
-import { inject, type Component, type InjectionKey, type Ref } from "vue";
+import { computed, inject, type Component, type ComputedRef, type InjectionKey, type Ref } from "vue";
 import type { ToolPluginCore, InputHandler } from "./index";
 
 // Re-export all core types
@@ -136,6 +136,49 @@ export function useRuntime<E = DefaultPluginEndpoints>(): BrowserPluginRuntime<E
     );
   }
   return runtime as BrowserPluginRuntime<E>;
+}
+
+// ============================================================================
+// Plugin-local i18n
+// ============================================================================
+
+/**
+ * Pick the message table for `locale`, falling back to `en`.
+ *
+ * Uses `Object.hasOwn` rather than `locale in messages`: `in` walks the
+ * prototype chain, so a locale of `"toString"` or `"constructor"` would
+ * "match" and hand back an inherited value instead of a message table.
+ */
+export function pickMessages<M extends Record<string, unknown> & { en: unknown }>(
+  messages: M,
+  locale: string,
+): M[keyof M] {
+  return (Object.hasOwn(messages, locale) ? messages[locale as keyof M] : messages.en) as M[keyof M];
+}
+
+/**
+ * Build a plugin's `useT()` from its own message tables.
+ *
+ * Plugin-local i18n: the tables travel with the plugin bundle and are never
+ * merged into the host's i18n instance. The plugin reads the host's locale via
+ * `useRuntime()` and looks up its own table reactively.
+ *
+ * ```ts
+ * import en from "./en";
+ * import ja from "./ja";
+ * export const useT = createUseT({ en, ja });
+ * ```
+ *
+ * A plugin that needs real vue-i18n features (plural forms, linked messages)
+ * should spin up its own `createI18n()` instead.
+ */
+export function createUseT<M extends Record<string, unknown> & { en: unknown }>(
+  messages: M,
+): () => ComputedRef<M[keyof M]> {
+  return function useT(): ComputedRef<M[keyof M]> {
+    const { locale } = useRuntime();
+    return computed(() => pickMessages(messages, locale.value));
+  };
 }
 
 // ============================================================================
