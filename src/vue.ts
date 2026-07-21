@@ -5,7 +5,7 @@
  * Use these types when building Vue-based plugin UI components.
  */
 
-import { computed, inject, type Component, type ComputedRef, type InjectionKey, type Ref } from "vue";
+import { computed, inject, ref, type Component, type ComputedRef, type InjectionKey, type Ref } from "vue";
 import type { ToolPluginCore, InputHandler } from "./index";
 
 // Re-export all core types
@@ -160,14 +160,20 @@ export function pickMessages<M extends Record<string, unknown> & { en: unknown }
  * Build a plugin's `useT()` from its own message tables.
  *
  * Plugin-local i18n: the tables travel with the plugin bundle and are never
- * merged into the host's i18n instance. The plugin reads the host's locale via
- * `useRuntime()` and looks up its own table reactively.
+ * merged into the host's i18n instance. The plugin reads the host's locale off
+ * the runtime and looks up its own table reactively.
  *
  * ```ts
  * import en from "./en";
  * import ja from "./ja";
  * export const useT = createUseT({ en, ja });
  * ```
+ *
+ * Degrades instead of throwing: with no host runtime provided it falls back to
+ * a static `"en"` locale, so a plugin's components still render standalone (in
+ * a storybook, a unit test, or a page mounted outside the host's plugin scope).
+ * `useRuntime()` throws in that situation by design — it is the accessor for
+ * code that genuinely requires the host. Translation lookup does not.
  *
  * A plugin that needs real vue-i18n features (plural forms, linked messages)
  * should spin up its own `createI18n()` instead.
@@ -176,7 +182,8 @@ export function createUseT<M extends Record<string, unknown> & { en: unknown }>(
   messages: M,
 ): () => ComputedRef<M[keyof M]> {
   return function useT(): ComputedRef<M[keyof M]> {
-    const { locale } = useRuntime();
+    const runtime = inject(PLUGIN_RUNTIME_KEY, undefined);
+    const locale: Ref<string> = runtime?.locale ?? ref("en");
     return computed(() => pickMessages(messages, locale.value));
   };
 }
