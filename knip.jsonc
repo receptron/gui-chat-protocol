@@ -1,0 +1,26 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  // The three public API entries (src/index.ts → ".", src/vue.ts → "./vue", src/react.ts →
+  // "./react") are all auto-detected by knip from package.json "exports", so listing them here is
+  // redundant. Only the tests need declaring: every test/test_*.ts is a standalone node --test
+  // script that exercises the library, so they are entry points, not analyzed source.
+  "entry": ["test/**/*.ts"],
+  "project": ["src/**/*.ts"],
+  "ignoreExportsUsedInFile": true,
+  "includeEntryExports": false,
+  "rules": {
+    // Warn mode: every rule is "warn" (reported, exit 0) or "off". Nothing gates CI here.
+    "files": "warn",
+    "dependencies": "warn",
+    "devDependencies": "warn",
+    "unlisted": "warn",
+    "exports": "warn",
+    "types": "warn",
+    "unresolved": "off",
+    "binaries": "off",
+    "nsExports": "off",
+    "nsTypes": "off",
+    "enumMembers": "off",
+    "duplicates": "off",
+  },
+}
