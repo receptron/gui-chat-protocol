@@ -9,7 +9,10 @@
 ## Build, Test, and Development Commands
 - `yarn install` — install dependencies; run after cloning or whenever `package.json` changes.
 - `yarn build` — runs `vite build` to emit ESM, CJS, and declaration bundles under `dist/`. Use this before publishing.
-- `yarn typecheck` — executes `tsc --noEmit` with the strict settings in `tsconfig.json`. Treat failures here as blockers because types are our primary safety net.
+- `yarn typecheck` — executes `tsc --noEmit` with the strict settings in `tsconfig.json`. Treat failures here as blockers because types are our primary safety net. Coverage is `src/**` plus `test/types/**` (type-conformance fixtures); the `node:test` files are outside it.
+- `yarn lint` — ESLint over `src` and `test`. `consistent-type-assertions` is set to `assertionStyle: "never"`, so an `as` is an error; exceptions live in `eslint.config.mjs` with a reason, never as an inline disable.
+- `yarn test` — runs `test/test_*.ts` with `tsx --test` (`node:test` + `node:assert`).
+- `yarn format` — Prettier over `src` and `test`.
 
 ## Coding Style & Naming Conventions
 - Use TypeScript with 2-space indentation, named exports, and doc blocks for public APIs (see `src/vue.ts`).
@@ -17,7 +20,7 @@
 - Keep modules side-effect free so bundlers can treeshake; prefer pure data helpers over runtime operations.
 
 ## Testing Guidelines
-- There is no runtime test harness yet, so rely on `yarn typecheck` plus lightweight sample usage snippets when evolving the schema.
+- Runtime behaviour is tested with `node:test` under `test/`; type-level guarantees are tested by files under `test/types/` that `yarn typecheck` compiles. A signature change needs both — a reference implementation that compiles proves the shape is *implementable*, not that the shape is *right* (TypeScript relates overloaded sources leniently), so exact-type pins carry the second half.
 - When adding new handlers or schema fields, mirror the change in `spec/GUI_CHAT_PROTOCOL.md` and include an example configuration in the doc so reviewers can reason about compatibility.
 
 ## Commit & Pull Request Guidelines

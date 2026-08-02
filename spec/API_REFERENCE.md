@@ -69,10 +69,21 @@ interface ToolContext {
 }
 
 interface ToolContextApp {
-  getConfig: <T>(key: string) => T | undefined;
+  getConfig: {
+    (key: string): unknown;
+    <T>(key: string, parse: (raw: unknown) => T): T | undefined;
+  };
   setConfig: (key: string, value: unknown) => void;
 }
 ```
+
+`getConfig` reads the host's config store, so it hands back `unknown` unless you pass a reader:
+
+```typescript
+const model = app.getConfig("llm.model", (raw) => String(raw));
+```
+
+`parse` is not called for a missing key — the result is `undefined`.
 
 ## Input Handlers
 

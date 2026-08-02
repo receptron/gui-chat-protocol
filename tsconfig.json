@@ -13,16 +13,29 @@
     "moduleDetection": "force",
     "noEmit": true,
 
-    /* Linting */
+    /* Linting — `strict` covers 8 flags; the rest are NOT in it and are listed
+       individually. Each was measured at 0 errors on this tree before being
+       turned on (`tsc --noEmit --pretty false --<flag> | grep -c "error TS"`),
+       so none of them carries a migration. */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "useUnknownInCatchVariables": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": true,
     "noUncheckedSideEffectImports": true,
 
     /* Declaration */
     "declaration": true,
     "declarationMap": true
   },
-  "include": ["src/**/*.ts"]
+  // `test/types/` holds type-conformance fixtures (a host implementation that
+  // must compile without assertions), so they are typechecked with the source.
+  // The rest of `test/` is not: those files import `node:test`, which would
+  // pull in @types/node for no gain — tsx runs them.
+  "include": ["src/**/*.ts", "test/types/**/*.ts"]
 }

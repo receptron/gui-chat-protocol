@@ -5,7 +5,15 @@
  * Use these types when building Vue-based plugin UI components.
  */
 
-import { computed, inject, ref, type Component, type ComputedRef, type InjectionKey, type Ref } from "vue";
+import {
+  computed,
+  inject,
+  ref,
+  type Component,
+  type ComputedRef,
+  type InjectionKey,
+  type Ref,
+} from "vue";
 import type { ToolPluginCore, InputHandler } from "./index";
 
 // Re-export all core types
@@ -44,9 +52,34 @@ export interface BrowserPluginRuntime<E = DefaultPluginEndpoints> {
    * Scoped pub/sub client. `subscribe("foo", handler)` is internally
    * routed to channel `plugin:<pkg>:foo`. Returns an unsubscribe
    * function.
+   *
+   * Without `parse` the payload is `unknown` — a channel frame is
+   * whatever the publisher put on the wire, so a plugin that names the
+   * payload type without checking it is asking the host to assert a
+   * shape nobody verified. Same rule as `fetchJson`.
+   *
+   * `parse` returns `T | null` rather than throwing: a subscription is
+   * a stream, so a frame that doesn't match is **dropped** and the
+   * handler is not called. A payload that is legitimately `null` has to
+   * be wrapped (`{ value: null }`) to be distinguishable from a reject.
+   *
+   * ```ts
+   * subscribe("changed", (raw) => Bookmarks.safeParse(raw).data ?? null, (bookmarks) => {
+   *   list.value = bookmarks; // ← typed, no cast
+   * });
+   * ```
    */
   pubsub: {
-    subscribe<T>(eventName: string, handler: (payload: T) => void): () => void;
+    subscribe(
+      eventName: string,
+      handler: (payload: unknown) => void,
+    ): () => void;
+    /** Validated form — the handler receives `parse`'s return type. */
+    subscribe<T>(
+      eventName: string,
+      parse: (raw: unknown) => T | null,
+      handler: (payload: T) => void,
+    ): () => void;
   };
 
   /**
@@ -76,8 +109,19 @@ export interface BrowserPluginRuntime<E = DefaultPluginEndpoints> {
    * JSON response. The host attaches the bearer token + builds the
    * URL automatically; the plugin author doesn't need to know either.
    * Throws on network error or non-2xx response.
+   *
+   * Without `parse` the result is `unknown` — the host receives
+   * un-validated JSON, so naming the return type without checking it
+   * would make the host assert a shape nobody verified. Same rule as
+   * `fetchJson`; idiomatic with Zod:
+   *
+   * ```ts
+   * const list = await dispatch({ kind: "list" }, (raw) => Bookmarks.parse(raw));
+   * ```
    */
-  dispatch<T = unknown>(args: object): Promise<T>;
+  dispatch(args: object): Promise<unknown>;
+  /** Validated form — the promise resolves to `parse`'s return type. */
+  dispatch<T>(args: object, parse: (raw: unknown) => T): Promise<T>;
 
   /**
    * Optional URL map for plugins that need more than the single
@@ -110,7 +154,9 @@ export interface BrowserPluginRuntime<E = DefaultPluginEndpoints> {
  * plugin loader provides a per-plugin instance here; `useRuntime()`
  * inside a plugin component picks it up.
  */
-export const PLUGIN_RUNTIME_KEY: InjectionKey<BrowserPluginRuntime> = Symbol("guiChatPluginRuntime");
+export const PLUGIN_RUNTIME_KEY: InjectionKey<BrowserPluginRuntime> = Symbol(
+  "guiChatPluginRuntime",
+);
 
 /**
  * Composable that returns the plugin's `BrowserPluginRuntime`. Throws
@@ -128,7 +174,9 @@ export const PLUGIN_RUNTIME_KEY: InjectionKey<BrowserPluginRuntime> = Symbol("gu
  * Without the type parameter, `endpoints` falls back to
  * `DefaultPluginEndpoints` (Readonly<Record<string, unknown>>).
  */
-export function useRuntime<E = DefaultPluginEndpoints>(): BrowserPluginRuntime<E> {
+export function useRuntime<
+  E = DefaultPluginEndpoints,
+>(): BrowserPluginRuntime<E> {
   const runtime = inject(PLUGIN_RUNTIME_KEY);
   if (!runtime) {
     throw new Error(
@@ -149,11 +197,12 @@ export function useRuntime<E = DefaultPluginEndpoints>(): BrowserPluginRuntime<E
  * prototype chain, so a locale of `"toString"` or `"constructor"` would
  * "match" and hand back an inherited value instead of a message table.
  */
-export function pickMessages<M extends Record<string, unknown> & { en: unknown }>(
-  messages: M,
-  locale: string,
-): M[keyof M] {
-  return (Object.hasOwn(messages, locale) ? messages[locale as keyof M] : messages.en) as M[keyof M];
+export function pickMessages<
+  M extends Record<string, unknown> & { en: unknown },
+>(messages: M, locale: string): M[keyof M] {
+  return (
+    Object.hasOwn(messages, locale) ? messages[locale as keyof M] : messages.en
+  ) as M[keyof M];
 }
 
 /**

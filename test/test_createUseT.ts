@@ -10,11 +10,8 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { createApp, ref, type Ref } from "vue";
 
-import {
-  createUseT,
-  PLUGIN_RUNTIME_KEY,
-  type BrowserPluginRuntime,
-} from "../src/vue";
+import { createUseT, PLUGIN_RUNTIME_KEY } from "../src/vue";
+import { createFakeHost } from "./types/fakeHostRuntime";
 
 const MESSAGES = {
   en: { hello: "Hello" },
@@ -22,20 +19,11 @@ const MESSAGES = {
   de: { hello: "Hallo" },
 } as const;
 
-/** Minimal stand-in for the host runtime — only `locale` is read here. */
-function fakeRuntime(locale: Ref<string>): BrowserPluginRuntime {
-  return {
-    locale,
-    pubsub: { subscribe: () => () => {} },
-    log: { debug() {}, info() {}, warn() {}, error() {} },
-    openUrl() {},
-    dispatch: async () => ({}),
-  };
-}
-
+// The stand-in host lives in `test/types/` because it is typechecked (see the
+// header there); only `locale` is read in this file.
 function withRuntime<T>(locale: Ref<string>, fn: () => T): T {
   const app = createApp({});
-  app.provide(PLUGIN_RUNTIME_KEY, fakeRuntime(locale));
+  app.provide(PLUGIN_RUNTIME_KEY, createFakeHost({ locale }).runtime);
   return app.runWithContext(fn);
 }
 

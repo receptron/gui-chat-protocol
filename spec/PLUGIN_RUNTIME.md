@@ -52,7 +52,7 @@ The handler signature is `(args: unknown) => unknown | Promise<unknown>`. The ho
 
 ```ts
 interface PluginRuntime {
-  pubsub:    { publish<T>(eventName: string, payload: T): void };
+  pubsub:    { publish(eventName: string, payload: unknown): void };
   locale:    string;                                      // host-detected locale snapshot
   files:     { data: FileOps; config: FileOps; artifacts: FileOps }; // data/config private; artifacts shared
   log:       { debug; info; warn; error };                // (msg, data?) → void
@@ -65,6 +65,8 @@ interface PluginRuntime {
 ### `pubsub`
 
 Scoped publisher. `publish("foo", payload)` routes to channel `plugin:<pkg>:foo`. The plugin author never spells the prefix; the host appended it at runtime construction. Cross-plugin event leakage is structurally impossible through the API.
+
+`payload` is `unknown`, not a type parameter: the type does not survive the channel (the frame crosses as JSON), so naming it here would advertise a contract the subscriber never receives. The receiving end narrows — see [`subscribe`](#subscribe) below.
 
 ### `locale`
 
@@ -145,11 +147,15 @@ const { pubsub, locale, openUrl, dispatch, log } = useRuntime();
 
 ```ts
 interface BrowserPluginRuntime {
-  pubsub:  { subscribe<T>(eventName: string, handler: (payload: T) => void): () => void };
+  pubsub: {
+    subscribe(eventName: string, handler: (payload: unknown) => void): () => void;
+    subscribe<T>(eventName: string, parse: (raw: unknown) => T | null, handler: (payload: T) => void): () => void;
+  };
   locale:  Ref<string>;                                  // reactive
   log:     { debug; info; warn; error };
   openUrl: (url: string) => void;                        // target=_blank + noopener,noreferrer
-  dispatch<T = unknown>(args: object): Promise<T>;       // POST to this plugin's dispatch route
+  dispatch(args: object): Promise<unknown>;              // POST to this plugin's dispatch route
+  dispatch<T>(args: object, parse: (raw: unknown) => T): Promise<T>;
   endpoints?: Readonly<Record<string, string>>;          // multi-URL escape hatch (optional)
 }
 ```
@@ -161,12 +167,46 @@ interface BrowserPluginRuntime {
 Calls back to this plugin's server-side handler from the browser. The host attaches the bearer token + builds the URL automatically; the plugin author never spells either:
 
 ```ts
-const json = await dispatch<{ ok: boolean; bookmarks: Bookmark[] }>({
-  kind: "list",
-});
+const { bookmarks } = await dispatch({ kind: "list" }, (raw) => ListResult.parse(raw));
 ```
 
 The shape of `args` is whatever the plugin's server handler expects (typically a discriminated union by `kind` — see "Action discriminator pattern" below).
+
+The second argument is a **reader**: it takes the raw JSON and returns the narrowed value (or throws). Without it the result is `unknown` and the plugin narrows it itself. There is no form that lets the plugin *name* the response type without checking it — the host would have to assert a shape nobody verified, which is exactly what `fetchJson` refuses to do on the server side.
+
+### `subscribe`
+
+Same rule for channel frames, with one difference: a subscription is a stream, so `parse` returns `T | null` and a `null` **drops the frame** instead of throwing.
+
+```ts
+subscribe("changed", (raw) => Bookmarks.safeParse(raw).data ?? null, (bookmarks) => {
+  list.value = bookmarks;
+});
+```
+
+A payload that is legitimately `null` must be wrapped (`{ value: null }`) so it is distinguishable from a reject.
+
+### Implementing these on the host side
+
+Both members are overloaded, so the host declares overloads too. A rest-tuple union narrowed by `rest.length` is what keeps the implementation free of type assertions — `test/types/fakeHostRuntime.ts` in this repo is a complete, compiled reference:
+
+```ts
+function subscribe(eventName: string, handler: (payload: unknown) => void): () => void;
+function subscribe<T>(eventName: string, parse: (raw: unknown) => T | null, handler: (payload: T) => void): () => void;
+function subscribe<T>(
+  eventName: string,
+  ...rest:
+    | [handler: (payload: unknown) => void]
+    | [parse: (raw: unknown) => T | null, handler: (payload: T) => void]
+): () => void {
+  if (rest.length === 1) return onFrame(eventName, rest[0]);
+  const [parse, handler] = rest;
+  return onFrame(eventName, (raw) => {
+    const payload = parse(raw);
+    if (payload !== null) handler(payload);
+  });
+}
+```
 
 ### `endpoints` (optional, multi-URL plugins)
 

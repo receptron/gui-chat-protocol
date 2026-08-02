@@ -29,13 +29,26 @@ describe("pickMessages", () => {
   // `locale in MESSAGES`, which walks the prototype chain — so these names
   // "matched" and handed back an inherited value instead of a message table.
   it("does not treat inherited properties as locales", () => {
-    for (const inherited of ["toString", "constructor", "hasOwnProperty", "__proto__", "valueOf"]) {
-      assert.deepEqual(pickMessages(MESSAGES, inherited), { hello: "Hello" }, `${inherited} must fall back to en`);
+    for (const inherited of [
+      "toString",
+      "constructor",
+      "hasOwnProperty",
+      "__proto__",
+      "valueOf",
+    ]) {
+      assert.deepEqual(
+        pickMessages(MESSAGES, inherited),
+        { hello: "Hello" },
+        `${inherited} must fall back to en`,
+      );
     }
   });
 
   it("prefers an own property that shadows an inherited name", () => {
-    const shadowed = { en: { hello: "Hello" }, toString: { hello: "shadowed" } } as const;
+    const shadowed = {
+      en: { hello: "Hello" },
+      toString: { hello: "shadowed" },
+    } as const;
     assert.deepEqual(pickMessages(shadowed, "toString"), { hello: "shadowed" });
   });
 });
