@@ -77,8 +77,8 @@ export function createFakeHost(options: FakeHostOptions = {}): FakeHost {
     args: object,
     parse: (raw: unknown) => T,
   ): Promise<T>;
-  async function dispatch<T>(args: object, parse?: (raw: unknown) => T) {
-    void args;
+  // `__args` — the canned response ignores what was posted.
+  async function dispatch<T>(__args: object, parse?: (raw: unknown) => T) {
     const raw: unknown = await Promise.resolve(dispatchResponse);
     return parse ? parse(raw) : raw;
   }
