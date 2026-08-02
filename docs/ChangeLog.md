@@ -19,6 +19,8 @@
   | `getConfig` | `getConfig<T>(key)` | `getConfig(key)` → `unknown`, or `getConfig(key, parse)` |
   | `publish` | `publish<T>(name, payload)` | `publish(name, payload)` — `payload: unknown` |
 
+  The rule underneath, written up in [`spec/PLUGIN_RUNTIME.md`](../spec/PLUGIN_RUNTIME.md#why-these-take-a-reader): **a type parameter that appears only in the return position is a type assertion with nicer syntax** — `dispatch<Bookmark[]>(args)` and `(await dispatch(args)) as Bookmark[]` were the same thing, except the second is visible to a reviewer. Passing a reader turns `T` from a *declaration* into an *inference*, derived from `parse`'s return type. `publish<T>` was the opposite case: `T` sat in an argument position, so it was inferred and could not lie — just useless, since the type does not survive JSON. It was deleted rather than fixed.
+
   Un-parameterized call sites are unaffected (`dispatch(args)` was already `Promise<unknown>`). What breaks: any call that passed an explicit type argument, and every host implementing `BrowserPluginRuntime` / `PluginRuntime` / `ToolContextApp`. `subscribe`'s `parse` returns `T | null` because a subscription is a stream — a frame that does not match is **dropped**, not fatal.
 
   `ToolContextApp`'s index signature now returns `unknown` instead of `any` for the same reason: what a host's backend function hands back is not something this protocol can see.

@@ -162,6 +162,35 @@ interface BrowserPluginRuntime {
 
 `useRuntime()` **throws** when called outside a host-provided scope. Plugin Vue components should always render inside the host's plugin-scope wrapper (the host's loader is responsible for this).
 
+### Why these take a reader
+
+**A type parameter that appears only in the return position is a type assertion with nicer syntax.**
+
+```ts
+dispatch<T = unknown>(args: object): Promise<T>;   // T is nowhere in the arguments
+```
+
+Nothing in the call gives the compiler a way to *derive* `T`, so whatever the caller writes is what it gets — which makes these two lines the same thing:
+
+```ts
+const list = await dispatch<Bookmark[]>(args);
+const list = (await dispatch(args)) as Bookmark[];
+```
+
+The second is visible to a reviewer and to `consistent-type-assertions`. The first is not, and it moves the assertion into the *host*: to return `Promise<T>` from an untyped HTTP response, the host has no option but `json as T`. The API made lying a requirement of implementing it. This was not hypothetical — the fake host in this repo's own test suite (`dispatch: async () => ({})`) failed to compile against the old signature the moment the tests were typechecked.
+
+Nothing breaks at runtime, which is what makes it worth taking seriously: the only thing that changes is **what the compiler believes**. When the server answers `{ error: "..." }`, `list[0].url` still typechecks, and the program dies later at a line that has nothing to do with the cause.
+
+Passing a reader turns `T` from a **declaration** into an **inference** — it is derived from `parse`'s return type, so the type and the check can no longer disagree:
+
+```ts
+dispatch<T>(args: object, parse: (raw: unknown) => T): Promise<T>;
+```
+
+`publish` is a different case worth naming, because it looks similar and is not. Its `publish<T>(name, payload: T)` had `T` in an *argument* position, so it was inferred and could not lie — just useless: the type does not survive JSON, so the subscriber never receives it. That one was deleted rather than fixed.
+
+Applying the same test elsewhere: `useRuntime<E>()` has `E` only in `endpoints?: E`, which is why it is the one assertion left in `src/` ([#31](https://github.com/receptron/gui-chat-protocol/issues/31)).
+
 ### `dispatch`
 
 Calls back to this plugin's server-side handler from the browser. The host attaches the bearer token + builds the URL automatically; the plugin author never spells either:
