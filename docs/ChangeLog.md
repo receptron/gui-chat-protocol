@@ -51,6 +51,10 @@
 
   Two pre-existing assertions in `src/vue.ts` (`useRuntime<E>()`, `pickMessages<M>()`) are the same unsound-generic family and are excluded via a documented allowlist entry rather than an inline disable — tracked in [#31](https://github.com/receptron/gui-chat-protocol/issues/31), since fixing them changes an API plugins call directly.
 
+- **Dead-code and duplication scanners** ([#29](https://github.com/receptron/gui-chat-protocol/pull/29)). Two report-only static-analysis jobs, neither of which gates CI: **knip** (`knip.jsonc`, every rule `warn` or `off`) writes unused-file / unused-export / unused-dependency findings to the job summary, and **jscpd** v5.0.12 (pinned, SHA256-verified binary, no `--threshold`) uploads copy/paste findings as SARIF to code scanning. knip reports zero findings. jscpd's single clone — the logger shape mirrored between `PluginRuntime.log` and `BrowserPluginRuntime.log` — is left as-is deliberately: extracting a shared `PluginLogger` type would add an exported type to the published `.d.ts` surface, and the mirror is intentional (the `vue.ts` field is commented "Same shape as the server-side logger").
+
+- **Dependency maintenance** ([#28](https://github.com/receptron/gui-chat-protocol/pull/28)). devDependencies only, all minor/patch: `@types/react` 19.2.17→19.2.18, `eslint` 10.3.0→10.8.0, `globals` 17.4.0→17.8.0, `react` 19.2.7→19.2.8, `vite` 8.1.5→8.2.0. `yarn audit` reports 0 vulnerabilities across 209 packages; `yarn-deduplicate` found nothing to collapse. No source or config changes were needed. **TypeScript deliberately held at `^6.0.3`** — TS 7 (native/tsgo) breaks `ts-node@10`, and `typescript-eslint@8` supports only `typescript <6.1.0`, so moving to TS 7 is its own migration.
+
 📦 npm: [`gui-chat-protocol@2.0.0`](https://www.npmjs.com/package/gui-chat-protocol/v/2.0.0)
 
 ## 1.2.0 — 2026-07-24
