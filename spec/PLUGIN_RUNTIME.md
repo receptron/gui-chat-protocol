@@ -52,7 +52,7 @@ The handler signature is `(args: unknown) => unknown | Promise<unknown>`. The ho
 
 ```ts
 interface PluginRuntime {
-  pubsub:    { publish<T>(eventName: string, payload: T): void };
+  pubsub:    { publish(eventName: string, payload: unknown): void };
   locale:    string;                                      // host-detected locale snapshot
   files:     { data: FileOps; config: FileOps; artifacts: FileOps }; // data/config private; artifacts shared
   log:       { debug; info; warn; error };                // (msg, data?) → void
@@ -65,6 +65,8 @@ interface PluginRuntime {
 ### `pubsub`
 
 Scoped publisher. `publish("foo", payload)` routes to channel `plugin:<pkg>:foo`. The plugin author never spells the prefix; the host appended it at runtime construction. Cross-plugin event leakage is structurally impossible through the API.
+
+`payload` is `unknown`, not a type parameter: the type does not survive the channel (the frame crosses as JSON), so naming it here would advertise a contract the subscriber never receives. The receiving end narrows — see [`subscribe`](#subscribe) below.
 
 ### `locale`
 
@@ -145,28 +147,111 @@ const { pubsub, locale, openUrl, dispatch, log } = useRuntime();
 
 ```ts
 interface BrowserPluginRuntime {
-  pubsub:  { subscribe<T>(eventName: string, handler: (payload: T) => void): () => void };
+  pubsub: {
+    subscribe(eventName: string, handler: (payload: unknown) => void): () => void;
+    subscribe<T>(eventName: string, opts: { parse: (raw: unknown) => T | null }, handler: (payload: T) => void): () => void;
+  };
   locale:  Ref<string>;                                  // reactive
   log:     { debug; info; warn; error };
   openUrl: (url: string) => void;                        // target=_blank + noopener,noreferrer
-  dispatch<T = unknown>(args: object): Promise<T>;       // POST to this plugin's dispatch route
+  dispatch(args: object): Promise<unknown>;              // POST to this plugin's dispatch route
+  dispatch<T>(args: object, parse: (raw: unknown) => T): Promise<T>;
   endpoints?: Readonly<Record<string, string>>;          // multi-URL escape hatch (optional)
 }
 ```
 
 `useRuntime()` **throws** when called outside a host-provided scope. Plugin Vue components should always render inside the host's plugin-scope wrapper (the host's loader is responsible for this).
 
+### Why these take a reader
+
+**A type parameter that appears only in the return position is a type assertion with nicer syntax.**
+
+```ts
+dispatch<T = unknown>(args: object): Promise<T>;   // T is nowhere in the arguments
+```
+
+Nothing in the call gives the compiler a way to *derive* `T`, so whatever the caller writes is what it gets — which makes these two lines the same thing:
+
+```ts
+const list = await dispatch<Bookmark[]>(args);
+const list = (await dispatch(args)) as Bookmark[];
+```
+
+The second is visible to a reviewer and to `consistent-type-assertions`. The first is not, and it moves the assertion into the *host*: to return `Promise<T>` from an untyped HTTP response, the host has no option but `json as T`. The API made lying a requirement of implementing it. This was not hypothetical — the fake host in this repo's own test suite (`dispatch: async () => ({})`) failed to compile against the old signature the moment the tests were typechecked.
+
+Nothing breaks at runtime, which is what makes it worth taking seriously: the only thing that changes is **what the compiler believes**. When the server answers `{ error: "..." }`, `list[0].url` still typechecks, and the program dies later at a line that has nothing to do with the cause.
+
+Passing a reader turns `T` from a **declaration** into an **inference** — it is derived from `parse`'s return type, so the type and the check can no longer disagree:
+
+```ts
+dispatch<T>(args: object, parse: (raw: unknown) => T): Promise<T>;
+```
+
+`publish` is a different case worth naming, because it looks similar and is not. Its `publish<T>(name, payload: T)` had `T` in an *argument* position, so it was inferred and could not lie — just useless: the type does not survive JSON, so the subscriber never receives it. That one was deleted rather than fixed.
+
+Applying the same test elsewhere: `useRuntime<E>()` has `E` only in `endpoints?: E`, which is why it is the one assertion left in `src/` ([#31](https://github.com/receptron/gui-chat-protocol/issues/31)).
+
 ### `dispatch`
 
 Calls back to this plugin's server-side handler from the browser. The host attaches the bearer token + builds the URL automatically; the plugin author never spells either:
 
 ```ts
-const json = await dispatch<{ ok: boolean; bookmarks: Bookmark[] }>({
-  kind: "list",
-});
+const { bookmarks } = await dispatch({ kind: "list" }, (raw) => ListResult.parse(raw));
 ```
 
 The shape of `args` is whatever the plugin's server handler expects (typically a discriminated union by `kind` — see "Action discriminator pattern" below).
+
+The second argument is a **reader**: it takes the raw JSON and returns the narrowed value (or throws). Without it the result is `unknown` and the plugin narrows it itself. There is no form that lets the plugin *name* the response type without checking it — the host would have to assert a shape nobody verified, which is exactly what `fetchJson` refuses to do on the server side.
+
+### `subscribe`
+
+Same rule for channel frames, with one difference: a subscription is a stream, so `parse` returns `T | null` and a `null` **drops the frame** instead of throwing.
+
+```ts
+subscribe("changed", { parse: (raw) => Bookmarks.safeParse(raw).data ?? null }, (bookmarks) => {
+  list.value = bookmarks;
+});
+```
+
+A payload that is legitimately `null` must be wrapped (`{ value: null }`) so it is distinguishable from a reject.
+
+**A `parse` that throws is also a drop.** The host must catch it, skip that frame, and keep delivering — to this subscriber and to every other one on the same channel. This is a requirement rather than a nicety: the idiom documented for `dispatch` and `fetchJson` is `parse: (raw) => MySchema.parse(raw)`, and Zod's `parse` throws, so a plugin author who copies that idiom here would otherwise take down a shared channel on one malformed frame. Returning `null` (`safeParse(raw).data ?? null`) is still preferred — it does not pay for an exception per bad frame.
+
+The reader travels in an object (`{ parse }`, matching `fetchJson`'s `opts.parse`) rather than as a bare argument, and that is load-bearing. With a bare argument, forgetting the handler compiled:
+
+```ts
+subscribe("changed", asBookmarks);   // ← meant to validate, forgot the handler
+```
+
+Every unary function satisfies `(payload: unknown) => void`, because a `void` return type accepts any return value — so this resolved to the *untyped* overload with the validator registered AS the handler. Each frame was parsed and the result thrown away, silently, with no error at compile time or run time. `{ parse }` is not callable, so the same mistake is now a type error.
+
+### Implementing these on the host side
+
+Both members are overloaded, so the host declares overloads too. A rest-tuple union narrowed by `rest.length` is what keeps the implementation free of type assertions — `test/types/fakeHostRuntime.ts` in this repo is a complete, compiled reference:
+
+```ts
+function subscribe(eventName: string, handler: (payload: unknown) => void): () => void;
+function subscribe<T>(eventName: string, opts: SubscribeOptions<T>, handler: (payload: T) => void): () => void;
+function subscribe<T>(
+  eventName: string,
+  ...rest:
+    | [handler: (payload: unknown) => void]
+    | [opts: SubscribeOptions<T>, handler: (payload: T) => void]
+): () => void {
+  if (rest.length === 1) return onFrame(eventName, rest[0]);
+  const [opts, handler] = rest;
+  return onFrame(eventName, (raw) => {
+    let payload: T | null;
+    try {
+      payload = opts.parse(raw);        // a throwing parse is a drop, not an outage
+    } catch (error) {
+      log.warn(`dropped an unparseable frame on ${eventName}`, { error });
+      return;
+    }
+    if (payload !== null) handler(payload);
+  });
+}
+```
 
 ### `endpoints` (optional, multi-URL plugins)
 

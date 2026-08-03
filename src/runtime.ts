@@ -99,9 +99,15 @@ export interface PluginRuntime<E = DefaultServerPluginEndpoints> {
    * Scoped pub/sub publisher. `publish("foo", payload)` is internally
    * routed to channel `plugin:<pkg>:foo`. The plugin cannot publish to
    * another plugin's namespace.
+   *
+   * `payload` is `unknown` on purpose: the type does not travel to the
+   * subscriber (it crosses the channel as JSON), so a type parameter
+   * here would advertise a contract the receiving end never gets. The
+   * subscriber narrows with `BrowserPluginRuntime`'s `subscribe(name,
+   * { parse }, handler)`.
    */
   pubsub: {
-    publish<T>(eventName: string, payload: T): void;
+    publish(eventName: string, payload: unknown): void;
   };
 
   /**
@@ -207,10 +213,12 @@ export interface PluginFactoryResult {
  * `PluginFactoryResult` and the runtime loader's load-time warn is
  * the safety net.
  */
-export type StrictPluginResult<T> = T extends { TOOL_DEFINITION: { name: infer N extends string } }
+export type StrictPluginResult<T> = T extends {
+  TOOL_DEFINITION: { name: infer N extends string };
+}
   ? string extends N
     ? PluginFactoryResult
-    : T & { [K in N]: (args: unknown) => unknown | Promise<unknown> }
+    : T & Record<N, (args: unknown) => unknown | Promise<unknown>>
   : never;
 // `(args: unknown)` not `(args: never)`: the parameter type is the
 // **contextual** type a plugin author sees when writing
@@ -283,6 +291,8 @@ export function definePlugin<T extends PluginFactoryResult>(
  *  this point — it pulls `TOOL_DEFINITION` from the factory's return
  *  value to discover it. The strict, name-narrowed form is enforced at
  *  the `definePlugin` call site instead. */
-export function isPluginFactory(value: unknown): value is (runtime: PluginRuntime) => PluginFactoryResult {
+export function isPluginFactory(
+  value: unknown,
+): value is (runtime: PluginRuntime) => PluginFactoryResult {
   return typeof value === "function";
 }

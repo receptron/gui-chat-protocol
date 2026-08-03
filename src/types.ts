@@ -14,13 +14,7 @@ import type { PluginConfigSchema, JsonSchemaProperty } from "./schema";
 
 // Backend types that plugins can declare they use
 export type BackendType =
-  | "textLLM"
-  | "imageGen"
-  | "audio"
-  | "search"
-  | "browse"
-  | "map"
-  | "mulmocast";
+  "textLLM" | "imageGen" | "audio" | "search" | "browse" | "map" | "mulmocast";
 
 // ============================================================================
 // Tool Result
@@ -121,13 +115,31 @@ export interface ToolResultComplete<
 /**
  * App interface provided to plugins via context.app
  * Contains backend functions and config accessors
+ *
+ * The index signature keeps `any[]` parameters so a host can expose backend
+ * functions of any arity, but returns `unknown`: what a host function hands
+ * back is not something this protocol can see, so the plugin narrows it.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface ToolContextApp extends Record<
   string,
-  (...args: any[]) => any
+  (...args: any[]) => unknown
 > {
-  getConfig: <T = unknown>(key: string) => T | undefined;
+  /**
+   * Read a host config value. Untyped by default — the value comes from
+   * the host's config store, so naming its type without checking it
+   * would make the host assert a shape nobody verified. Pass `parse` to
+   * narrow it (same rule as `fetchJson` in `./runtime`):
+   *
+   * ```ts
+   * const model = app.getConfig("llm.model", (raw) => String(raw));
+   * ```
+   *
+   * `parse` is not called for a missing key — the result is `undefined`.
+   */
+  getConfig: {
+    (key: string): unknown;
+    <T>(key: string, parse: (raw: unknown) => T): T | undefined;
+  };
   setConfig: (key: string, value: unknown) => void;
 }
 

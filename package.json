@@ -1,6 +1,6 @@
 {
   "name": "gui-chat-protocol",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "description": "Protocol types for GUI chat plugins - framework-agnostic core with Vue and React adapters",
   "type": "module",
   "exports": {
@@ -33,8 +33,8 @@
   "scripts": {
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src",
-    "format": "prettier --write 'src/**/*.{js,ts}'",
+    "lint": "eslint src test",
+    "format": "prettier --write 'src/**/*.{js,ts}' 'test/**/*.ts'",
     "test": "tsx --test test/test_*.ts",
     "knip": "knip"
   },
