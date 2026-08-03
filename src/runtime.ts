@@ -104,7 +104,7 @@ export interface PluginRuntime<E = DefaultServerPluginEndpoints> {
    * subscriber (it crosses the channel as JSON), so a type parameter
    * here would advertise a contract the receiving end never gets. The
    * subscriber narrows with `BrowserPluginRuntime`'s `subscribe(name,
-   * parse, handler)`.
+   * { parse }, handler)`.
    */
   pubsub: {
     publish(eventName: string, payload: unknown): void;

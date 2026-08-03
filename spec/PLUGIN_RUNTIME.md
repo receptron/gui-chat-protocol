@@ -215,6 +215,8 @@ subscribe("changed", { parse: (raw) => Bookmarks.safeParse(raw).data ?? null }, 
 
 A payload that is legitimately `null` must be wrapped (`{ value: null }`) so it is distinguishable from a reject.
 
+**A `parse` that throws is also a drop.** The host must catch it, skip that frame, and keep delivering — to this subscriber and to every other one on the same channel. This is a requirement rather than a nicety: the idiom documented for `dispatch` and `fetchJson` is `parse: (raw) => MySchema.parse(raw)`, and Zod's `parse` throws, so a plugin author who copies that idiom here would otherwise take down a shared channel on one malformed frame. Returning `null` (`safeParse(raw).data ?? null`) is still preferred — it does not pay for an exception per bad frame.
+
 The reader travels in an object (`{ parse }`, matching `fetchJson`'s `opts.parse`) rather than as a bare argument, and that is load-bearing. With a bare argument, forgetting the handler compiled:
 
 ```ts
@@ -239,7 +241,13 @@ function subscribe<T>(
   if (rest.length === 1) return onFrame(eventName, rest[0]);
   const [opts, handler] = rest;
   return onFrame(eventName, (raw) => {
-    const payload = opts.parse(raw);
+    let payload: T | null;
+    try {
+      payload = opts.parse(raw);        // a throwing parse is a drop, not an outage
+    } catch (error) {
+      log.warn(`dropped an unparseable frame on ${eventName}`, { error });
+      return;
+    }
     if (payload !== null) handler(payload);
   });
 }

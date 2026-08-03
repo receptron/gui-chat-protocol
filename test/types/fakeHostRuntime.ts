@@ -106,7 +106,19 @@ export function createFakeHost(options: FakeHostOptions = {}): FakeHost {
     }
     const [opts, handler] = rest;
     return onFrame(eventName, (raw) => {
-      const payload = opts.parse(raw);
+      // A throwing `parse` is a drop, not a channel outage: `Schema.parse(raw)`
+      // is the idiom `dispatch` and `fetchJson` document, and Zod's `parse`
+      // throws. Without this, one malformed frame takes the subscription — and
+      // every other subscriber on that frame — down with it.
+      let payload: T | null;
+      try {
+        payload = opts.parse(raw);
+      } catch (error) {
+        logged.push(
+          `warn: dropped an unparseable frame on ${eventName}: ${String(error)}`,
+        );
+        return;
+      }
       if (payload !== null) {
         handler(payload);
       }

@@ -95,6 +95,47 @@ describe("subscribe", () => {
     );
   });
 
+  // `{ parse: (raw) => Schema.parse(raw) }` is the idiom `dispatch` and
+  // `fetchJson` document, and Zod's `parse` throws rather than returning null.
+  // Copying it here must not be able to take a shared channel down.
+  it("treats a throwing parse as a drop, and keeps the channel alive", () => {
+    const host = createFakeHost();
+    const seen: Bookmark[] = [];
+    host.runtime.pubsub.subscribe(
+      "changed",
+      { parse: asBookmark },
+      (bookmark) => seen.push(bookmark),
+    );
+
+    const other: unknown[] = [];
+    host.runtime.pubsub.subscribe("changed", (payload) => other.push(payload));
+
+    assert.doesNotThrow(() =>
+      host.emit({ eventName: "changed", payload: { nope: true } }),
+    );
+    host.emit({
+      eventName: "changed",
+      payload: { url: "https://example.com" },
+    });
+
+    assert.deepEqual(
+      seen,
+      [{ url: "https://example.com" }],
+      "the throwing frame is skipped, and the subscription survives it",
+    );
+    assert.equal(
+      other.length,
+      2,
+      "a co-subscriber on the same channel must still receive both frames",
+    );
+    assert.ok(
+      host.logged.some((line) =>
+        line.startsWith("warn: dropped an unparseable frame"),
+      ),
+      "the drop is logged rather than silent",
+    );
+  });
+
   it("passes the raw payload through when no parse is given", () => {
     const host = createFakeHost();
     const seen: unknown[] = [];

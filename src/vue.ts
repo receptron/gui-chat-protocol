@@ -41,6 +41,15 @@ export interface SubscribeOptions<T> {
   /**
    * Narrow a raw channel frame. Return `null` to **drop** it — the
    * handler is not called and the subscription stays alive.
+   *
+   * A `parse` that *throws* is also a drop: the host must catch it, skip
+   * the frame, and keep delivering. This is not decoration — the
+   * documented idiom for `dispatch` and `fetchJson` is
+   * `parse: (raw) => MySchema.parse(raw)`, and Zod's `parse` throws, so
+   * a plugin author copying that idiom here would otherwise take down a
+   * shared channel on one malformed frame. Returning `null` is still
+   * preferred (`safeParse(raw).data ?? null`) because it does not pay
+   * for an exception per bad frame.
    */
   parse: (raw: unknown) => T | null;
 }
