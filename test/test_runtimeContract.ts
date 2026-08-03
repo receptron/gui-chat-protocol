@@ -58,8 +58,10 @@ describe("subscribe", () => {
   it("delivers parse's return value, not the raw frame", () => {
     const host = createFakeHost();
     const seen: Bookmark[] = [];
-    host.runtime.pubsub.subscribe("changed", asBookmarkOrNull, (bookmark) =>
-      seen.push(bookmark),
+    host.runtime.pubsub.subscribe(
+      "changed",
+      { parse: asBookmarkOrNull },
+      (bookmark) => seen.push(bookmark),
     );
 
     host.emit({
@@ -73,8 +75,10 @@ describe("subscribe", () => {
   it("drops the frame when parse returns null", () => {
     const host = createFakeHost();
     const seen: Bookmark[] = [];
-    host.runtime.pubsub.subscribe("changed", asBookmarkOrNull, (bookmark) =>
-      seen.push(bookmark),
+    host.runtime.pubsub.subscribe(
+      "changed",
+      { parse: asBookmarkOrNull },
+      (bookmark) => seen.push(bookmark),
     );
 
     host.emit({ eventName: "changed", payload: { url: 42 } });

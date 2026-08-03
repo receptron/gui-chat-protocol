@@ -36,7 +36,7 @@ dispatch<T>(args: object, parse: (raw: unknown) => T): Promise<T>;
 
 // src/vue.ts — BrowserPluginRuntime["pubsub"]
 subscribe(eventName: string, handler: (payload: unknown) => void): () => void;
-subscribe<T>(eventName: string, parse: (raw: unknown) => T | null, handler: (payload: T) => void): () => void;
+subscribe<T>(eventName: string, opts: SubscribeOptions<T>, handler: (payload: T) => void): () => void;
 
 // src/types.ts — ToolContextApp
 getConfig: {
@@ -72,7 +72,7 @@ Un-parameterized call sites keep compiling (`await dispatch(args)` was already `
 `getConfig(key)` was already `unknown`). These break, by design:
 
 - `dispatch<Foo>(args)` → add a reader: `dispatch(args, asFoo)`
-- `subscribe<Foo>("x", h)` → `subscribe("x", asFooOrNull, h)`
+- `subscribe<Foo>("x", h)` → `subscribe("x", { parse: asFooOrNull }, h)`
 - `getConfig<string>("k")` → `getConfig("k", asString)`
 - `publish<Foo>("x", p)` → `publish("x", p)`
 - every host implementing `BrowserPluginRuntime` / `PluginRuntime` / `ToolContextApp`

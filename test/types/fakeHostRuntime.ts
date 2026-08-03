@@ -18,6 +18,7 @@ import { ref, type Ref } from "vue";
 import type {
   BrowserPluginRuntime,
   PluginRuntime,
+  SubscribeOptions,
   ToolContextApp,
 } from "../../src/vue";
 
@@ -89,23 +90,23 @@ export function createFakeHost(options: FakeHostOptions = {}): FakeHost {
   ): () => void;
   function subscribe<T>(
     eventName: string,
-    parse: (raw: unknown) => T | null,
+    opts: SubscribeOptions<T>,
     handler: (payload: T) => void,
   ): () => void;
   // A union of argument tuples, narrowed by `rest.length`, is what lets the
-  // implementation read `parse` and `handler` without asserting either.
+  // implementation read `opts` and `handler` without asserting either.
   function subscribe<T>(
     eventName: string,
     ...rest:
       | [handler: (payload: unknown) => void]
-      | [parse: (raw: unknown) => T | null, handler: (payload: T) => void]
+      | [opts: SubscribeOptions<T>, handler: (payload: T) => void]
   ): () => void {
     if (rest.length === 1) {
       return onFrame(eventName, rest[0]);
     }
-    const [parse, handler] = rest;
+    const [opts, handler] = rest;
     return onFrame(eventName, (raw) => {
-      const payload = parse(raw);
+      const payload = opts.parse(raw);
       if (payload !== null) {
         handler(payload);
       }

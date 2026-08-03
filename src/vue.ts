@@ -34,6 +34,18 @@ export * from "./index";
 export type DefaultPluginEndpoints = Readonly<Record<string, unknown>>;
 
 /**
+ * Reader for `pubsub.subscribe`. Mirrors `PluginFetchJsonOptions` on the
+ * server side, so both seams narrow untrusted input the same way.
+ */
+export interface SubscribeOptions<T> {
+  /**
+   * Narrow a raw channel frame. Return `null` to **drop** it — the
+   * handler is not called and the subscription stays alive.
+   */
+  parse: (raw: unknown) => T | null;
+}
+
+/**
  * Runtime exposed to a plugin's Vue components via `useRuntime()`. The
  * host wraps a plugin's component subtree in a scope provider that
  * `provide`s a per-plugin instance to `PLUGIN_RUNTIME_KEY`.
@@ -64,20 +76,28 @@ export interface BrowserPluginRuntime<E = DefaultPluginEndpoints> {
    * be wrapped (`{ value: null }`) to be distinguishable from a reject.
    *
    * ```ts
-   * subscribe("changed", (raw) => Bookmarks.safeParse(raw).data ?? null, (bookmarks) => {
+   * subscribe("changed", { parse: (raw) => Bookmarks.safeParse(raw).data ?? null }, (bookmarks) => {
    *   list.value = bookmarks; // ← typed, no cast
    * });
    * ```
+   *
+   * The reader travels in an object (like `fetchJson`'s `opts.parse`)
+   * rather than as a bare argument. A bare one would make the
+   * handler-less mistake compile: any unary function satisfies
+   * `(payload: unknown) => void`, since a `void` return type accepts
+   * any return value — so `subscribe(name, parse)` would silently
+   * register the validator AS the handler and discard every frame.
+   * `{ parse }` is not a function, so that call is a type error.
    */
   pubsub: {
     subscribe(
       eventName: string,
       handler: (payload: unknown) => void,
     ): () => void;
-    /** Validated form — the handler receives `parse`'s return type. */
+    /** Validated form — the handler receives `opts.parse`'s return type. */
     subscribe<T>(
       eventName: string,
-      parse: (raw: unknown) => T | null,
+      opts: SubscribeOptions<T>,
       handler: (payload: T) => void,
     ): () => void;
   };

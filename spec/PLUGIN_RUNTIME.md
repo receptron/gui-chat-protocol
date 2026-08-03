@@ -149,7 +149,7 @@ const { pubsub, locale, openUrl, dispatch, log } = useRuntime();
 interface BrowserPluginRuntime {
   pubsub: {
     subscribe(eventName: string, handler: (payload: unknown) => void): () => void;
-    subscribe<T>(eventName: string, parse: (raw: unknown) => T | null, handler: (payload: T) => void): () => void;
+    subscribe<T>(eventName: string, opts: { parse: (raw: unknown) => T | null }, handler: (payload: T) => void): () => void;
   };
   locale:  Ref<string>;                                  // reactive
   log:     { debug; info; warn; error };
@@ -208,12 +208,20 @@ The second argument is a **reader**: it takes the raw JSON and returns the narro
 Same rule for channel frames, with one difference: a subscription is a stream, so `parse` returns `T | null` and a `null` **drops the frame** instead of throwing.
 
 ```ts
-subscribe("changed", (raw) => Bookmarks.safeParse(raw).data ?? null, (bookmarks) => {
+subscribe("changed", { parse: (raw) => Bookmarks.safeParse(raw).data ?? null }, (bookmarks) => {
   list.value = bookmarks;
 });
 ```
 
 A payload that is legitimately `null` must be wrapped (`{ value: null }`) so it is distinguishable from a reject.
+
+The reader travels in an object (`{ parse }`, matching `fetchJson`'s `opts.parse`) rather than as a bare argument, and that is load-bearing. With a bare argument, forgetting the handler compiled:
+
+```ts
+subscribe("changed", asBookmarks);   // ← meant to validate, forgot the handler
+```
+
+Every unary function satisfies `(payload: unknown) => void`, because a `void` return type accepts any return value — so this resolved to the *untyped* overload with the validator registered AS the handler. Each frame was parsed and the result thrown away, silently, with no error at compile time or run time. `{ parse }` is not callable, so the same mistake is now a type error.
 
 ### Implementing these on the host side
 
@@ -221,17 +229,17 @@ Both members are overloaded, so the host declares overloads too. A rest-tuple un
 
 ```ts
 function subscribe(eventName: string, handler: (payload: unknown) => void): () => void;
-function subscribe<T>(eventName: string, parse: (raw: unknown) => T | null, handler: (payload: T) => void): () => void;
+function subscribe<T>(eventName: string, opts: SubscribeOptions<T>, handler: (payload: T) => void): () => void;
 function subscribe<T>(
   eventName: string,
   ...rest:
     | [handler: (payload: unknown) => void]
-    | [parse: (raw: unknown) => T | null, handler: (payload: T) => void]
+    | [opts: SubscribeOptions<T>, handler: (payload: T) => void]
 ): () => void {
   if (rest.length === 1) return onFrame(eventName, rest[0]);
-  const [parse, handler] = rest;
+  const [opts, handler] = rest;
   return onFrame(eventName, (raw) => {
-    const payload = parse(raw);
+    const payload = opts.parse(raw);
     if (payload !== null) handler(payload);
   });
 }

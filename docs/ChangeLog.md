@@ -15,7 +15,7 @@
   | | before | after |
   |---|---|---|
   | `dispatch` | `dispatch<T>(args)` | `dispatch(args)` → `unknown`, or `dispatch(args, parse)` |
-  | `subscribe` | `subscribe<T>(name, handler)` | `subscribe(name, handler)` with `unknown`, or `subscribe(name, parse, handler)` |
+  | `subscribe` | `subscribe<T>(name, handler)` | `subscribe(name, handler)` with `unknown`, or `subscribe(name, { parse }, handler)` |
   | `getConfig` | `getConfig<T>(key)` | `getConfig(key)` → `unknown`, or `getConfig(key, parse)` |
   | `publish` | `publish<T>(name, payload)` | `publish(name, payload)` — `payload: unknown` |
 
@@ -38,6 +38,8 @@
   ```
 
   Every host implementing `BrowserPluginRuntime` / `PluginRuntime` / `ToolContextApp` also has to change. `subscribe`'s `parse` returns `T | null` because a subscription is a stream — a frame that does not match is **dropped**, not fatal.
+
+  `subscribe` takes its reader **in an object** (`{ parse }`, like `fetchJson`'s `opts.parse`) rather than as a bare argument, and that is load-bearing rather than cosmetic. With a bare argument, forgetting the handler — `subscribe(name, parse)` — compiled: every unary function satisfies `(payload: unknown) => void`, because a `void` return type accepts any return value. The validator was silently registered AS the handler, so every frame was parsed and discarded, with no error at compile time or run time. An object is not callable, so that call is now a type error. Pinned by `HandlerlessSubscribeIsRejected`.
 
   `ToolContextApp`'s index signature now returns `unknown` instead of `any` for the same reason: what a host's backend function hands back is not something this protocol can see.
 
