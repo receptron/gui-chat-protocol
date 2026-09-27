@@ -14,8 +14,13 @@ import type {
   BrowserPluginRuntime,
   DefaultPluginEndpoints,
   PluginRuntime,
+  SequenceKeeper,
+  SequenceKeeperOptions,
+  SequenceStep,
   SubscribeOptions,
+  ToolContext,
   ToolContextApp,
+  ToolResult,
 } from "../../src/vue";
 import { useRuntime } from "../../src/vue";
 
@@ -103,5 +108,46 @@ export type UseRuntimeHoleIsContained = Expect<
   IsExact<
     typeof useRuntime,
     <E = DefaultPluginEndpoints>() => BrowserPluginRuntime<E>
+  >
+>;
+
+/**
+ * Sequences (2.1). What crosses from a plugin to a host is plain data, so it
+ * survives a trip over HTTP: `sequence` is a step, `null` ("a step that wasn't
+ * shown": the host stops) or absent ("not a step": the host changes nothing).
+ * The three are different instructions to the keeper, so `null` must not
+ * collapse into absent, nor the field become required.
+ */
+export type SequenceFieldIsPinned = Expect<
+  IsExact<ToolResult["sequence"], SequenceStep | null | undefined>
+>;
+
+/** A timestamp a server can receive, not a function it can't. */
+export type UserSpokeAtIsPinned = Expect<
+  IsExact<ToolContext["userSpokeAt"], number | undefined>
+>;
+
+/**
+ * The keeper hands the host instructions to send and nothing else: the host
+ * decides how (a user turn, `response.create`), and whatever it returns is
+ * ignored rather than trusted.
+ */
+export type SendInstructionsIsPinned = Expect<
+  IsExact<
+    SequenceKeeperOptions["sendInstructions"],
+    (instructions: string) => unknown
+  >
+>;
+
+export type SequenceKeeperIsPinned = Expect<
+  IsExact<
+    SequenceKeeper,
+    {
+      observe(result: ToolResult, startedAt: number): string | undefined;
+      replyEnded(): void;
+      userSpoke(): void;
+      stop(): void;
+      userSpokeAt(): number | undefined;
+    }
   >
 >;

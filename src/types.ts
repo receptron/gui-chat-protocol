@@ -95,6 +95,49 @@ export interface ToolResult<T = unknown, J = unknown> {
    */
   data?: T;
   viewState?: Record<string, unknown>; // tool specific view state
+  /**
+   * The result is a step of a sequence the model shows one step at a
+   * time (a slideshow's slide, a story's panel), and this is where the
+   * sequence is now. A host that supports sequences keeps them going
+   * with it (see `createSequenceKeeper`); one that doesn't ignores it.
+   *
+   * - A `SequenceStep`: the step is on the screen.
+   * - `null`: a step of a sequence that wasn't shown (the picture
+   *   failed, say). The host stops keeping the sequence going: asking
+   *   for the step again would fail again.
+   * - Absent: the result isn't part of a sequence. The host's tracking
+   *   is unchanged (the model may show a chart in the middle of a
+   *   slideshow).
+   *
+   * A cancelled result (a repeated or held call) changes nothing either.
+   */
+  sequence?: SequenceStep | null;
+}
+
+/**
+ * Where a sequence is after one of its steps was shown. Everything here
+ * is for the host's wording to the model: the host asks the model to go
+ * on with `nextCall` when a reply ends mid-sequence.
+ */
+export interface SequenceStep {
+  /** This step's number, from 1 (0 for something shown before the first
+   *  step, such as a story's cast). */
+  step: number;
+  /** How many steps the sequence has. */
+  total: number;
+  /** What the sequence is, for the host's wording: "slideshow", "story". */
+  kind: string;
+  /** What is on the screen: "Slide 2 of 5". */
+  label: string;
+  /** What the model does with a step once it is on the screen:
+   *  "explain it". */
+  onShown: string;
+  /** The call that shows the next step, as the model should make it:
+   *  `call presentSlide for slide 3 of 5`. */
+  nextCall: string;
+  /** The next step waits for the user (a how-to step they are doing, a
+   *  story choice): the host doesn't ask the model to go on. */
+  waitsForUser?: boolean;
 }
 
 /**
@@ -149,6 +192,16 @@ export interface ToolContextApp extends Record<
 export interface ToolContext {
   currentResult?: ToolResult<unknown> | null;
   app?: ToolContextApp;
+  /**
+   * When the user last spoke or sent a message, in milliseconds since
+   * the epoch (`Date.now()`), or absent when the host doesn't know. A
+   * plugin whose step waits for the user (a guide's step, a story's
+   * choice) holds a later step until the user has spoken since the
+   * waiting one appeared. A plain number, so a host that runs
+   * `execute()` on a server can send it with the request. Hosts using
+   * `createSequenceKeeper` take it from `userSpokeAt()`.
+   */
+  userSpokeAt?: number;
 }
 
 // ============================================================================
