@@ -64,7 +64,13 @@ export interface SequenceKeeper {
    * answer the user first.
    */
   observe(result: ToolResult, startedAt: number): string | undefined;
-  /** The model's reply, or its audio, ended. */
+  /**
+   * The model's reply, or its audio, ended. Call it for every reply,
+   * including the one that answers a tool's result: a step's result cancels
+   * any check already waiting (see `observe`), and the reply to that result
+   * is what arms the next one. A host that skips it for that reply leaves
+   * the sequence without a check.
+   */
   replyEnded(): void;
   /** The user started speaking or sent a message. */
   userSpoke(): void;
@@ -146,7 +152,11 @@ export function createSequenceKeeper(
       return undefined;
     }
     // A check set before this step arrived would ask for the step its own
-    // instructions are about to ask for.
+    // instructions are about to ask for: the host is briefly idle between
+    // the result and the model's reply to it, and a check firing then would
+    // ask the model to go on while the step's instructions also do (the
+    // model skips the step or calls the next one twice). So it is
+    // cancelled, not kept; the reply to this result calls replyEnded().
     cancelCheck();
     progress = { step, asked: false };
     return undefined;

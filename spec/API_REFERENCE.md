@@ -152,6 +152,12 @@ const keeper = createSequenceKeeper({
 // The chat ended:                    keeper.stop();
 ```
 
+Call `replyEnded()` for **every** reply that ends, including the one that answers a tool's result.
+A step's result cancels any check already waiting (one firing in the idle moment before the model
+answers the result would ask for the next step while the step's own instructions do too), and the
+reply to that result is what arms the next check. A host that skips it for that reply leaves the
+sequence without a check.
+
 It asks at most once per step, never after the last step or a step that waits for the user, and
 looks again while the host is busy. The user speaking stops it; a step asked for before the user
 spoke gets instructions to answer them first (`observe` returns them).

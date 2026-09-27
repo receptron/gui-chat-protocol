@@ -98,6 +98,27 @@ test("looks again while the host is busy, and asks once it is idle", async () =>
   assert.deepEqual(sent, [continueSequenceInstructions(slide(1))]);
 });
 
+test("a tool finishing after the reply ended waits for the reply to its result", async () => {
+  const { keeper, sent, state, tick } = setup();
+  keeper.observe(shown(slide(1)), tick());
+  // The reply ends while the call for slide 2 is still running: the keeper
+  // looks again while the host is busy.
+  state.idle = false;
+  keeper.replyEnded();
+  await afterGrace();
+  // Slide 2 arrives. The host is idle for a moment before the model answers
+  // it; a check kept from before would ask for slide 3 now, while slide 2's
+  // own instructions also do. So its check is cancelled…
+  keeper.observe(shown(slide(2)), tick());
+  state.idle = true;
+  await afterGrace(2);
+  assert.deepEqual(sent, []);
+  // …and the reply to slide 2 arms the next one, which asks once.
+  keeper.replyEnded();
+  await afterGrace();
+  assert.deepEqual(sent, [continueSequenceInstructions(slide(2))]);
+});
+
 test("takes a turn for unanswered instructions before asking to go on", async () => {
   let turns = 0;
   const { keeper, sent, tick } = setup({
