@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.1.0 — 2026-09-28
+
+Additive; nothing existing changes.
+
+- **Sequences.** `ToolResult.sequence?: SequenceStep | null` says where a step-by-step tool's
+  sequence is (a slideshow's slide, a story's panel), `ToolContext.userSpokeAt?: number` tells a
+  plugin when the user last spoke, and `createSequenceKeeper(options)` is the host side: it asks the
+  model once to go on when a reply ends mid-sequence. From MulmoChat and MulmoGlass, whose slideshow
+  and storyboard tools move into a package that needs it. See
+  [`spec/API_REFERENCE.md`](../spec/API_REFERENCE.md#sequences-21).
+- **`context.app` conventions documented**: `generateImage(prompt)` and
+  `editImages(prompt, imagePaths)`, as MulmoChat and MulmoGlass provide them (`editImages` takes
+  the arguments of MulmoClaude's tool of that name).
+
 ## 2.0.0 — 2026-08-03
 
 - **BREAKING: `dispatch` / `subscribe` / `getConfig` take a reader; `publish` drops its type parameter** ([#30](https://github.com/receptron/gui-chat-protocol/issues/30)). Four signatures let the *caller* name a type that nothing verified, and the *host* had to produce it from an untyped HTTP response or channel frame — unprovable by construction, so no host could implement them without a type assertion. The package already answered this correctly one file over: `fetchJson<T>` requires `opts.parse`. These now do the same.

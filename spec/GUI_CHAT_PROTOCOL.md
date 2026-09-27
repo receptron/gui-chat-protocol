@@ -543,6 +543,18 @@ GUI Chat Protocol provides the foundation for this future—a future where compu
 
 **The operating system becomes a conversational partner, not a collection of apps.**
 
+## Sequences (2.1)
+
+Some tools show one step at a time: a slideshow's slides, a story's panels, a how-to's steps. The
+model is told with each step to talk about it and call the next, and sometimes ends its reply
+instead. A step's result can say where its sequence is (`ToolResult.sequence`), and a host keeps it
+going with `createSequenceKeeper`: when a reply ends mid-sequence and nothing is playing or running,
+it asks the model once to go on. A step that waits for the user (a how-to step they are doing, a
+story's choice) is held by the plugin until the user has spoken, from `ToolContext.userSpokeAt`.
+Both are optional: a host that doesn't support them ignores the field, and the tools still work,
+one reply at a time. See [`API_REFERENCE.md`](./API_REFERENCE.md#sequences-21) for the types and the
+wiring.
+
 ## Plugin Runtime API (v0.3+)
 
 `gui-chat-protocol@0.3.0` adds an opt-in factory-shape plugin contract that gives plugins a host-constructed, per-plugin scoped runtime (`pubsub`, `files.{data,config}`, `log`, `fetch`, `locale`, `dispatch`). See [`PLUGIN_RUNTIME.md`](./PLUGIN_RUNTIME.md) for the contract, the type surface, the path-normalisation rules, and the recommended ESLint preset.

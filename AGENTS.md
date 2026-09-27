@@ -13,6 +13,7 @@
 - `yarn lint` — ESLint over `src` and `test`. `consistent-type-assertions` is set to `assertionStyle: "never"`, so an `as` is an error; exceptions live in `eslint.config.mjs` with a reason, never as an inline disable.
 - `yarn test` — runs `test/test_*.ts` with `tsx --test` (`node:test` + `node:assert`).
 - `yarn format` — Prettier over `src` and `test`.
+- `yarn release` — publishes the version in `package.json` to npm and pushes its `v<version>` tag (`scripts/release.sh`). Run it on an up-to-date `main` after the PR that bumps the version and adds its `docs/ChangeLog.md` entry is merged; it refuses otherwise, runs the CI checks on a fresh build, shows what would be published and asks first.
 
 ## Coding Style & Naming Conventions
 - Use TypeScript with 2-space indentation, named exports, and doc blocks for public APIs (see `src/vue.ts`).

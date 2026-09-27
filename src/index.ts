@@ -9,3 +9,4 @@ export * from "./inputHandlers";
 export * from "./schema";
 export * from "./runtime";
 export * from "./serialLock";
+export * from "./sequence";
