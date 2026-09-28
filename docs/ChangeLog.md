@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.2.0 — 2026-09-28
+
+Additive; nothing existing changes.
+
+- **`ToolContext.conversationId?: string`**: which conversation a call belongs to, for hosts that
+  run several at once (tabs sharing one server, sessions). A plugin that keeps state in memory
+  between calls keeps it per conversation. Found when MulmoChat moved the slideshow tools to its
+  server: two tabs shared one slideshow in progress. See
+  [`spec/API_REFERENCE.md`](../spec/API_REFERENCE.md#conversationid-22).
+
 ## 2.1.0 — 2026-09-28
 
 Additive; nothing existing changes.

@@ -122,6 +122,11 @@ export type SequenceFieldIsPinned = Expect<
   IsExact<ToolResult["sequence"], SequenceStep | null | undefined>
 >;
 
+/** An opaque string a server can receive: plugins compare it, not parse it. */
+export type ConversationIdIsPinned = Expect<
+  IsExact<ToolContext["conversationId"], string | undefined>
+>;
+
 /** A timestamp a server can receive, not a function it can't. */
 export type UserSpokeAtIsPinned = Expect<
   IsExact<ToolContext["userSpokeAt"], number | undefined>

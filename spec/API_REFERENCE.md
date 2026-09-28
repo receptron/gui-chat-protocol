@@ -68,6 +68,7 @@ interface ToolContext {
   currentResult?: ToolResult | null;
   app?: ToolContextApp;
   userSpokeAt?: number; // 2.1 — when the user last spoke, ms since the epoch
+  conversationId?: string; // 2.2 — which conversation the call belongs to
 }
 
 interface ToolContextApp {
@@ -86,6 +87,14 @@ const model = app.getConfig("llm.model", (raw) => String(raw));
 ```
 
 `parse` is not called for a missing key — the result is `undefined`.
+
+#### `conversationId` (2.2)
+
+A host that runs several conversations at once, such as browser tabs sharing one server or
+separate sessions, sets `conversationId` on every call, the same for every call in one
+conversation. A plugin that keeps state in memory between calls (a slideshow in progress, a step
+waiting for the user) keeps it per `conversationId`, so conversations don't mix. It is opaque:
+compare it, don't parse it. Absent means one conversation, or a host that doesn't say.
 
 #### Conventional `context.app` functions
 

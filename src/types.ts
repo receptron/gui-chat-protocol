@@ -202,6 +202,15 @@ export interface ToolContext {
    * `createSequenceKeeper` take it from `userSpokeAt()`.
    */
   userSpokeAt?: number;
+  /**
+   * Which conversation this call belongs to, when a host runs several at
+   * once (browser tabs sharing one server, sessions). A plugin that keeps
+   * state in memory between calls (a slideshow in progress, a step waiting
+   * for the user) keeps it per conversation, so two conversations don't
+   * mix. Opaque: compare it, don't parse it. Absent means the host has one
+   * conversation, or doesn't say.
+   */
+  conversationId?: string;
 }
 
 // ============================================================================

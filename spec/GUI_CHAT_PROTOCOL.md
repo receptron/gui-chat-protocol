@@ -552,7 +552,9 @@ going with `createSequenceKeeper`: when a reply ends mid-sequence and nothing is
 it asks the model once to go on. A step that waits for the user (a how-to step they are doing, a
 story's choice) is held by the plugin until the user has spoken, from `ToolContext.userSpokeAt`.
 Both are optional: a host that doesn't support them ignores the field, and the tools still work,
-one reply at a time. See [`API_REFERENCE.md`](./API_REFERENCE.md#sequences-21) for the types and the
+one reply at a time. A host that runs several conversations at once sets
+`ToolContext.conversationId` (2.2), so a plugin keeps a slideshow in progress, or a step waiting
+for the user, per conversation. See [`API_REFERENCE.md`](./API_REFERENCE.md#sequences-21) for the types and the
 wiring.
 
 ## Plugin Runtime API (v0.3+)
