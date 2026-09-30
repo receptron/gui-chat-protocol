@@ -13,6 +13,16 @@ import type { ToolDefinition } from "./types";
 // ============================================================================
 
 /**
+ * The workspace directory `files.artifacts` is rooted at. A key written with
+ * `files.artifacts.write("charts/x.chart.json", …)` is the file
+ * `artifacts/charts/x.chart.json` in the workspace, and that
+ * workspace-relative form is the one a tool reports to the model and the user.
+ * Hosts root `files.artifacts` here; plugins build the reported path from it
+ * rather than spelling the literal.
+ */
+export const ARTIFACTS_ROOT = "artifacts";
+
+/**
  * File operations scoped to a single root directory (data or config).
  * All `rel` arguments are POSIX-relative paths. The platform normalises
  * input (`\` → `/`, `path.posix.normalize`, `ensureInsideBase`) before
@@ -128,7 +138,8 @@ export interface PluginRuntime<E = DefaultServerPluginEndpoints> {
    * plugin can write outputs the user sees in the Files explorer — e.g. a
    * chart plugin writing `charts/<slug>.chart.json`. Relative paths are
    * still normalised + traversal-guarded by the host; the plugin owns its
-   * category subdir (`charts/`, `spreadsheets/`, …) by convention.
+   * category subdir (`charts/`, `spreadsheets/`, …) by convention. The
+   * directory's name is `ARTIFACTS_ROOT`.
    */
   files: {
     data: FileOps;

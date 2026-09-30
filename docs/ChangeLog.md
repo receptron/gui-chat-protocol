@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.3.0 — 2026-09-30
+
+Additive; nothing existing changes.
+
+- **`ARTIFACTS_ROOT`** (`"artifacts"`): the workspace directory `files.artifacts` is rooted at. A
+  file a plugin writes as `charts/x.chart.json` is `artifacts/charts/x.chart.json` in the
+  workspace, and a tool reports that form to the model. Until now hosts and plugins each spelled
+  the literal; `@gui-chat-plugin/common`'s artifact path builders are the first to take it from
+  here. See
+  [`spec/PLUGIN_RUNTIME.md`](../spec/PLUGIN_RUNTIME.md#files--data-config-artifacts-).
+
 ## 2.2.0 — 2026-09-28
 
 Additive; nothing existing changes.

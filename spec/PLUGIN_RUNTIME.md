@@ -78,7 +78,7 @@ Scoped file I/O. Three roots, mirroring the host's own `data/` vs `config/` vs `
 
 - `files.data`: backup-target user data (e.g. the records the plugin manages on the user's behalf). **Private**, sandboxed to the plugin's own dir.
 - `files.config`: per-machine plugin settings / UI state (e.g. last-selected book id, sort preferences). **Private**, sandboxed to the plugin's own dir.
-- `files.artifacts`: **shared, user-browsable** output area rooted at the host's `artifacts/` dir. Use it for outputs the user should see in the Files explorer — e.g. a chart plugin writing `charts/<slug>.chart.json`. The plugin owns its category subdir (`charts/`, `spreadsheets/`, …) by convention; relative paths are still normalised + traversal-guarded by the host.
+- `files.artifacts`: **shared, user-browsable** output area rooted at the host's `artifacts/` dir. Use it for outputs the user should see in the Files explorer — e.g. a chart plugin writing `charts/<slug>.chart.json`. The plugin owns its category subdir (`charts/`, `spreadsheets/`, …) by convention; relative paths are still normalised + traversal-guarded by the host. The directory's name is exported as `ARTIFACTS_ROOT` (2.3): a file written as `charts/x.chart.json` is `` `${ARTIFACTS_ROOT}/charts/x.chart.json` `` in the workspace, the form a tool reports to the model.
 
 All three expose the same `FileOps` shape:
 
