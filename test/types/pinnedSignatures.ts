@@ -22,7 +22,7 @@ import type {
   ToolContextApp,
   ToolResult,
 } from "../../src/vue";
-import { useRuntime } from "../../src/vue";
+import { ARTIFACTS_ROOT, useRuntime } from "../../src/vue";
 
 /** True only for types that are mutually identical, not merely assignable. */
 type IsExact<A, B> =
@@ -120,6 +120,12 @@ export type UseRuntimeHoleIsContained = Expect<
  */
 export type SequenceFieldIsPinned = Expect<
   IsExact<ToolResult["sequence"], SequenceStep | null | undefined>
+>;
+
+/** The literal, not `string`: a host and a plugin agree on the directory's
+ *  name at compile time. */
+export type ArtifactsRootIsPinned = Expect<
+  IsExact<typeof ARTIFACTS_ROOT, "artifacts">
 >;
 
 /** An opaque string a server can receive: plugins compare it, not parse it. */
